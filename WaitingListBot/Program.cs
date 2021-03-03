@@ -56,7 +56,7 @@ namespace WaitingListBot
             await Task.Delay(-1);
         }
 
-        private async Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
+        private Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
         {
             // Try to update
             var storageFactory = serviceCollection.BuildServiceProvider().GetService<StorageFactory>();
@@ -71,6 +71,8 @@ namespace WaitingListBot
                     user.IsSub = after.Roles.Any(x => x.Id == storage.SubRoleId);
                 }
             }
+
+            return Task.CompletedTask;
         }
 
         private Task Log(LogMessage logMessage)
