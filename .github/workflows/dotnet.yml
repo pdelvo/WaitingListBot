@@ -50,7 +50,7 @@ jobs:
         target: "var/waitinglistbot"
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
-        privateKey : ${{ secrets.PRIVATE_KEY }}
+        key : ${{ secrets.PRIVATE_KEY }}
     - name: Start service
       uses: garygrossgarten/github-action-ssh@release
       with:
