@@ -13,13 +13,61 @@ namespace WaitingListBot
     [RequireContext(ContextType.Guild)]
     public class WaitingListModule : ModuleBase<SocketCommandContext>
     {
+        readonly StorageFactory _storageFactory;
+        readonly CommandService _commandService;
         Storage _storage;
-        CommandService _commandService;
 
-        public WaitingListModule(Storage storage, CommandService commandService)
+        public WaitingListModule(CommandService commandService, StorageFactory storageFactory)
         {
-            _storage = storage;
             _commandService = commandService;
+            _storageFactory = storageFactory;
+        }
+
+        protected override void BeforeExecute(CommandInfo command)
+        {
+            _storage = _storageFactory.GetStorage(Context.Guild.Id);
+            base.BeforeExecute(command);
+        }
+
+        [Command("setsubrole")]
+        [Summary("Sets the Id for the sub role.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task SetAsSubRole([Summary("The role of subscribers.")] IRole role)
+        {
+            _storage.SubRoleId = role.Id;
+            _storage.Save();
+            await Context.Message.ReplyAsync("Sub role has been set");
+        }
+
+        [Command("enable")]
+        [Summary("Enables the waiting list.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task Enable()
+        {
+            _storage.IsEnabled = true;
+            _storage.Save();
+            await Context.Message.ReplyAsync("Waiting list is enabled");
+
+
+            if (Context.Client.GetChannel(_storage.WaitingListChannelId) is ISocketMessageChannel channel)
+            {
+                await channel.SendMessageAsync($"The waiting list is now open! Use {_storage.CommandPrefix}play to join");
+            }
+        }
+
+        [Command("disable")]
+        [Summary("Disables the waiting list.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task Disable()
+        {
+            _storage.IsEnabled = false;
+            _storage.Save();
+            await Context.Message.ReplyAsync("Waiting list is disabled");
+
+            if (Context.Client.GetChannel(_storage.WaitingListChannelId) is ISocketMessageChannel channel)
+            {
+                await channel.SendMessageAsync($"The waiting list is now closed. You can no longer join.");
+            }
         }
 
         [Command("waitingchannel")]
@@ -29,7 +77,41 @@ namespace WaitingListBot
         {
             _storage.WaitingListChannelId = Context.Channel.Id;
             _storage.Save();
-            await ReplyAsync("Channel has been set as waiting channel");
+            await Context.Message.ReplyAsync("Channel has been set as waiting channel");
+        }
+
+        [Command("dmformat")]
+        [Summary("Gets or sets the DM format.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task DMFormatAsync([Remainder][Summary("The format string for the DM messages.")] string format = null)
+        {
+            if (format == null)
+            {
+                await Context.Message.ReplyAsync(_storage.DMMessageFormat ?? "");
+            }
+            else
+            {
+                _storage.DMMessageFormat = format;
+                _storage.Save();
+                await Context.Message.ReplyAsync("Message format has been changed.");
+            }
+        }
+
+        [Command("prefix")]
+        [Summary("Gets or sets the command prefix.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task PrefixFormat([Remainder][Summary("The format string for the DM messages.")] string prefix = null)
+        {
+            if (prefix == null)
+            {
+                await Context.Message.ReplyAsync("The prefix is: " + _storage.CommandPrefix ?? "");
+            }
+            else
+            {
+                _storage.CommandPrefix = prefix;
+                _storage.Save();
+                await Context.Message.ReplyAsync("Prefix has been changed.");
+            }
         }
 
         [Command("nuke")]
@@ -40,19 +122,19 @@ namespace WaitingListBot
             _storage.PlayCounter.Clear();
             _storage.List.Clear();
             _storage.Save();
-            await ReplyAsync("List has been cleared");
+            await Context.Message.ReplyAsync("List has been cleared");
         }
 
         [Command("next")]
         [Summary("Notifies the next players.")]
         [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
-        public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Password")]string password)
+        public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
             var list = GetSortedList();
 
             if (list.Count < numberOfPlayers)
             {
-                await ReplyAsync($"Did not send invites. There are only {list.Count} players in the list.");
+                await Context.Message.ReplyAsync($"Did not send invites. There are only {list.Count} players in the list.");
                 return;
             }
             // Send invites
@@ -71,6 +153,10 @@ namespace WaitingListBot
                 }
             }
 
+            string playerString = "";
+
+            var restClient = Context.Client.Rest;
+
             for (int i = 0; i < numberOfPlayers; i++)
             {
                 var player = list[i];
@@ -78,33 +164,51 @@ namespace WaitingListBot
                 IncreasePlayCounter(player.Id);
                 _storage.Save();
 
-                var user = Context.Client.GetUser(player.Id);
+                var restGuildUser = await restClient.GetGuildUserAsync(Context.Guild.Id, player.Id);
+                try
+                {
+                    var message =  string.Format(_storage.DMMessageFormat, arguments);
 
-                var message = "You are next in line to play!\r\n";
-                message += "Join the private match with the following details:\r\n";
-                message += "Name: Berry\r\n";
-                message += $"Password: {password}\r\n";
-                message += "Please make sure that you have cross platform play enabled!";
+                    playerString += restGuildUser.Mention + " ";
 
-
-                await user.SendMessageAsync(message);
+                    await restGuildUser.SendMessageAsync(message);
+                }
+                catch (FormatException)
+                {
+                    await Context.Message.ReplyAsync("The arguments had the wrong format");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    await Context.Message.ReplyAsync($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
+                }
             }
+            await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
         }
+
+        [Command("join")]
+        [Summary("Enters the waiting list.")]
+        public Task JoinAsync() => PlayAsync();
+
 
         [Command("play")]
         [Summary("Enters the waiting list.")]
         public async Task PlayAsync()
         {
-            var guildUser = Context.User as IGuildUser;
-
-            if (guildUser == null)
+            if (Context.User is not IGuildUser guildUser)
             {
+                return;
+            }
+
+            if (!_storage.IsEnabled)
+            {
+                await Context.Message.ReplyAsync("The waiting list is closed.");
                 return;
             }
 
             if (_storage.List.Any(x => x.Id == Context.User.Id))
             {
-                await Context.Message.ReplyAsync($"You are already on the waiting list!");
+                await Context.Message.ReplyAsync("You are already on the waiting list!");
             }
             else
             {
@@ -115,7 +219,7 @@ namespace WaitingListBot
                     Id = author.Id,
                     Name = guildUser.Nickname ?? author.Username,
                     JoinTime = DateTime.Now,
-                    IsSub = guildUser.RoleIds.Contains(765730759095877632ul)
+                    IsSub = guildUser.RoleIds.Contains(_storage.SubRoleId)
                 };
 
 
@@ -149,15 +253,20 @@ namespace WaitingListBot
         [Summary("Shows the waiting list.")]
         public async Task ListAsync()
         {
-            var embedBuilder = new EmbedBuilder();
-            embedBuilder.Color = Color.Green;
-            embedBuilder.Title = $"Waiting list";
+            var embedBuilder = new EmbedBuilder
+            {
+                Color = Color.Green,
+                Title = $"Waiting list"
+            };
+
             var sortedList = GetSortedList();
             var description = "";
             int counter = 0;
+
             foreach (var player in sortedList)
             {
-                description += $"**{++counter}.** {Context.Client.GetUser(player.Id).Mention} ({(player.IsSub ? "Sub " : "")}Played {GetPlayCounterById(player.Id)} times already)\r\n";
+                IGuildUser guildUser = Context.Guild.GetUser(player.Id);
+                description += $"**{++counter}.** {guildUser?.Mention} ({(player.IsSub ? "Sub, " : "")}Played {GetPlayCounterById(player.Id)} times already)\r\n";
             }
             embedBuilder.Description = description;
 
@@ -173,7 +282,7 @@ namespace WaitingListBot
 
             foreach (CommandInfo command in commands)
             {
-                if (!(await command.CheckPreconditionsAsync(Context)).IsSuccess)
+                if (command.Preconditions.Any (x => x is RequireUserPermissionAttribute))
                 {
                     continue;
                 }
@@ -189,7 +298,32 @@ namespace WaitingListBot
                 embedBuilder.AddField(title, embedFieldText);
             }
 
-            await ReplyAsync("Here's a list of commands and their description: ", false, embedBuilder.Build());
+            await Context.Message.ReplyAsync("Here's a list of commands and their description: ", false, embedBuilder.Build());
+        }
+
+        [Command("modhelp")]
+        [Summary("Shows this help message.")]
+        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        public async Task ModHelp()
+        {
+            List<CommandInfo> commands = _commandService.Commands.ToList();
+            EmbedBuilder embedBuilder = new EmbedBuilder();
+
+            foreach (CommandInfo command in commands)
+            {
+                // Get the command Summary attribute information
+                string embedFieldText = command.Summary ?? "No description available\r\n";
+                string title = $"!{command.Name} ";
+
+                foreach (var item in command.Parameters)
+                {
+                    title += $" [{item.Summary}]";
+                }
+
+                embedBuilder.AddField(title, embedFieldText);
+            }
+
+            await Context.Message.ReplyAsync("Here's a list of commands and their description: ", false, embedBuilder.Build());
         }
 
         private List<UserInList> GetSortedList()

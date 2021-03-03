@@ -1,7 +1,9 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
 
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -40,17 +42,56 @@ namespace WaitingListBot
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
+            var storageFactory = (StorageFactory)_services.GetService(typeof(StorageFactory));
+
             // Don't process the command if it was a system message
-            var message = messageParam as SocketUserMessage;
-            if (message == null) return;
+            if (messageParam is not SocketUserMessage message) return;
+
+            if (message.Author.IsBot)
+                return;
+
+            var guild = (message.Channel as SocketTextChannel)?.Guild;
+            if (guild == null)
+            {
+                await messageParam.Channel.SendMessageAsync("Sorry I dont work in private messages!");
+                return;
+            }
+
+            var storage = storageFactory.GetStorage(guild.Id);
+
+            if (!storage.IsInitialized)
+            {
+                storage.IsInitialized = true;
+                foreach (var userInList in storage.List)
+                {
+                    try
+                    {
+                        var guildUser = guild.GetUser(userInList.Id);
+                        userInList.Name = guildUser.Nickname ?? guildUser.Username;
+                        userInList.IsSub = guildUser.Roles.Any(x => x.Id == storage.SubRoleId);
+                    }
+                    catch { }
+                }
+            }
+
+            var channel = message.Channel;
+
+            if (channel.Id != storage.WaitingListChannelId)
+            {
+                // Only allow mods to issue commands outside the waiting list channel
+                var guildUser = message.Author as IGuildUser;
+                if (guildUser?.GuildPermissions.BanMembers == false)
+                {
+                    return;
+                }
+            }
 
             // Create a number to track where the prefix ends and the command begins
             int argPos = 0;
 
             // Determine if the message is a command based on the prefix and make sure no bots trigger commands
-            if (!(message.HasCharPrefix('!', ref argPos) ||
-                message.HasMentionPrefix(_client.CurrentUser, ref argPos)) ||
-                message.Author.IsBot)
+            if (!(message.HasStringPrefix(storage.CommandPrefix, ref argPos) ||
+                message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
                 return;
 
             // Create a WebSocket-based command context based on the message
@@ -65,7 +106,10 @@ namespace WaitingListBot
 
             if (!result.IsSuccess)
             {
-                await messageParam.Channel.SendMessageAsync("Could not complete command: " + result.ErrorReason);
+                if (result.Error != CommandError.UnknownCommand)
+                {
+                    await messageParam.Channel.SendMessageAsync("Could not complete command: " + result.ErrorReason);
+                }
             }
         }
     }
