@@ -20,7 +20,7 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     - name: Create Self Contained App
-      run: dotnet publish -p:PublishProfile=FolderProfile
+      run: dotnet publish -p:PublishProfile=FolderProfile -c Release
     - name: Save artifact
       uses: actions/upload-artifact@v2
       with:
