@@ -36,6 +36,8 @@ jobs:
       uses: actions/download-artifact@v2
       with:
           name: waitinglistbot
+    - name: Test
+      run: ls -l -R
     - name: Stop service
       uses: garygrossgarten/github-action-ssh@release
       with:
