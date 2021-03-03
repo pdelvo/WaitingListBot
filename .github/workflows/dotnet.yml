@@ -21,3 +21,10 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
+    - name: ls -a via ssh
+      uses: garygrossgarten/github-action-ssh@release
+      with:
+            command: ls -a
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            privateKey: ${{ secrets.PRIVATE_KEY }}
