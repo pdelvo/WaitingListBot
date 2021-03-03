@@ -21,13 +21,21 @@ jobs:
       run: dotnet build --no-restore
     - name: Create Self Contained App
       run: dotnet publish -p:PublishProfile=FolderProfile
+    - name: Save artifact
+      uses: actions/upload-artifact@v2
+      with:
+          name: waitinglistbot
+          path: WaitingListBot/bin/Release/net5.0/linux-x64/WaitingListBot
+    
   deploy:
     if: ${{ github.event_name == 'push' }}
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Test
-      run: ls -l
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+          name: waitinglistbot
     - name: Stop service
       uses: garygrossgarten/github-action-ssh@release
       with:
@@ -38,7 +46,7 @@ jobs:
     - name: Copy artifacts
       uses: garygrossgarten/github-action-scp@release
       with:
-        local: WaitingListBot/bin/Release/net5.0/linux-x64/WaitingListBot
+        local: WaitingListBot
         remote: var/waitinglistbot/WaitingListBot
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
