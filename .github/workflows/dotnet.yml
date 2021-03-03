@@ -26,6 +26,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+    - name: Test
+      run: ls -l
     - name: Stop service
       uses: garygrossgarten/github-action-ssh@release
       with:
