@@ -71,11 +71,11 @@ namespace WaitingListBot
         }
 
         [Command("waitingchannel")]
-        [Summary("Selects the current channel as the waiting list.")]
+        [Summary("Selects the channel as the waiting list channel.")]
         [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
-        public async Task MarkAsWaitingChannelAsync()
+        public async Task MarkAsWaitingChannelAsync(IGuildChannel channel)
         {
-            _storage.WaitingListChannelId = Context.Channel.Id;
+            _storage.WaitingListChannelId = channel.Id;
             _storage.Save();
             await Context.Message.ReplyAsync("Channel has been set as waiting channel");
         }
@@ -270,7 +270,8 @@ namespace WaitingListBot
             }
             embedBuilder.Description = description;
 
-            await Context.Message.ReplyAsync($"Here are the next players in line:", embed: embedBuilder.Build(), allowedMentions: AllowedMentions.None);
+            Embed embed = embedBuilder.Build();
+            await Context.Message.ReplyAsync($"Here are the next players in line:", embed: embed, allowedMentions: AllowedMentions.None);
         }
 
         [Command("help")]

@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31005.135
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaitingListBot", "WaitingListBot\WaitingListBot.csproj", "{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaitingListBot", "WaitingListBot\WaitingListBot.csproj", "{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaitingListBot.Web", "WaitingListBot.Web\WaitingListBot.Web.csproj", "{596AA8CE-41D1-4F43-9EB6-C70CA674F641}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{596AA8CE-41D1-4F43-9EB6-C70CA674F641}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{596AA8CE-41D1-4F43-9EB6-C70CA674F641}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{596AA8CE-41D1-4F43-9EB6-C70CA674F641}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{596AA8CE-41D1-4F43-9EB6-C70CA674F641}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

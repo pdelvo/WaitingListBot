@@ -339,3 +339,4 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /WaitingListBot/token.txt
+/WaitingListBot/token-dev.txt
