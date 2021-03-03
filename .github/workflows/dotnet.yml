@@ -44,10 +44,10 @@ jobs:
             username: ${{ secrets.USERNAME }}
             privateKey: ${{ secrets.PRIVATE_KEY }}
     - name: Copy artifacts
-      uses: garygrossgarten/github-action-scp@release
+      uses: appleboy/scp-action@master
       with:
-        local: WaitingListBot
-        remote: var/waitinglistbot/WaitingListBot
+        source: "WaitingListBot"
+        target: "var/waitinglistbot"
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         privateKey : ${{ secrets.PRIVATE_KEY }}
