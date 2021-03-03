@@ -37,8 +37,7 @@ namespace WaitingListBot
 
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
-            await client.SetGameAsync("Rocket League");
-            await client.SetActivityAsync(new Game("Rocket League", ActivityType.Watching));
+            await client.SetActivityAsync(new Game("wl.pdelvo.com", ActivityType.Watching));
 
             // Commands are not thread safe. So set the run mode to sync
             var commandService = new CommandService(new CommandServiceConfig { DefaultRunMode = RunMode.Sync, LogLevel = LogSeverity.Info });
