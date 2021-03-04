@@ -41,13 +41,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
           name: waitinglistbot
-    - name: Stop service
-      uses: garygrossgarten/github-action-ssh@release
-      with:
-            command: sudo systemctl stop WaitingListBot
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USERNAME }}
-            privateKey: ${{ secrets.PRIVATE_KEY }}
     - name: Copy artifacts
       uses: appleboy/scp-action@master
       with:
@@ -63,10 +56,10 @@ jobs:
             host: ${{ secrets.HOST }}
             username: ${{ secrets.USERNAME }}
             privateKey: ${{ secrets.PRIVATE_KEY }}
-    - name: Start service
+    - name: Restart service
       uses: garygrossgarten/github-action-ssh@release
       with:
-            command: sudo systemctl start WaitingListBot
+            command: sudo systemctl restart WaitingListBot
             host: ${{ secrets.HOST }}
             username: ${{ secrets.USERNAME }}
             privateKey: ${{ secrets.PRIVATE_KEY }}
@@ -79,13 +72,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
           name: waitinglistbotweb
-    - name: Stop service
-      uses: garygrossgarten/github-action-ssh@release
-      with:
-            command: sudo systemctl stop waitinglistbotweb
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USERNAME }}
-            privateKey: ${{ secrets.PRIVATE_KEY }}
     - name: Copy artifacts
       uses: appleboy/scp-action@master
       with:
@@ -97,7 +83,7 @@ jobs:
     - name: Start service
       uses: garygrossgarten/github-action-ssh@release
       with:
-            command: sudo systemctl start waitinglistbotweb
+            command: sudo systemctl restart waitinglistbotweb
             host: ${{ secrets.HOST }}
             username: ${{ secrets.USERNAME }}
             privateKey: ${{ secrets.PRIVATE_KEY }}
