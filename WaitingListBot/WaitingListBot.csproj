@@ -13,6 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="nuke.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="token-dev.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

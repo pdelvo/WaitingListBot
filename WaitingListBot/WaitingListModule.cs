@@ -122,7 +122,7 @@ namespace WaitingListBot
             _storage.PlayCounter.Clear();
             _storage.List.Clear();
             _storage.Save();
-            await Context.Message.ReplyAsync("List has been cleared");
+            await Context.Channel.SendFileAsync("nuke.jpg", "List has been cleared");
         }
 
         [Command("next")]
