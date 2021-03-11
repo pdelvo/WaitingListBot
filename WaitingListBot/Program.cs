@@ -28,8 +28,8 @@ namespace WaitingListBot
                 services.AddHostedService<Worker>()
             .Configure<EventLogSettings>(config =>
                 {
-                    config.LogName = "Sample Service";
-                    config.SourceName = "Sample Service Source";
+                    config.LogName = "Waiting List Bot";
+                    config.SourceName = "Waiting List Bot";
                 });
             });
     }
