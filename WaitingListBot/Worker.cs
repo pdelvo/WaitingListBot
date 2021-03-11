@@ -33,7 +33,11 @@ namespace WaitingListBot
             client.Log += Log;
             client.GuildMemberUpdated += GuildMemberUpdated;
 
+#if DEBUG
+            var token = File.ReadAllText("token-dev.txt");
+#else
             var token = File.ReadAllText("token.txt");
+#endif
 
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();

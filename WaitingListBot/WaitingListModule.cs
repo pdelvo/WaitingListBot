@@ -91,6 +91,27 @@ namespace WaitingListBot
             }
             else
             {
+                bool formatOk = false;
+                for (int i = 0; i < 10; i++)
+                {
+                    try
+                    {
+                        string.Format(format, new object[i]);
+
+                        formatOk = true;
+                        break;
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+
+                if (!formatOk)
+                {
+                    await Context.Message.ReplyAsync("The DM message format was not valid.");
+                    return;
+                }
+
                 _storage.DMMessageFormat = format;
                 _storage.Save();
                 await Context.Message.ReplyAsync("Message format has been changed.");
