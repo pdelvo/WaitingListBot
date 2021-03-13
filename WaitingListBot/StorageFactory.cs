@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,19 @@ namespace WaitingListBot
             storages.Add(guildId, storage);
 
             return storage;
+        }
+
+        public IEnumerable<ulong> ListIds()
+        {
+            foreach (var item in Directory.EnumerateFiles(Storage.GuildDirectory))
+            {
+                var fileName = Path.GetFileNameWithoutExtension(item);
+
+                if (ulong.TryParse(fileName, out ulong id))
+                {
+                    yield return id;
+                }
+            }
         }
     }
 }

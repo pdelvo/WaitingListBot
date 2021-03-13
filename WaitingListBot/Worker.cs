@@ -2,14 +2,15 @@
 using Discord.Commands;
 using Discord.WebSocket;
 
+using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,6 +54,29 @@ namespace WaitingListBot
             var handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
 
             await handler.InstallCommandsAsync();
+
+            // Set up Api
+
+            WebHost.CreateDefaultBuilder()
+                .ConfigureServices(s =>
+                {
+                    s.AddControllers();
+                    foreach (var service in serviceCollection)
+                    {
+                        s.Add(service);
+                    }
+                })
+                .Configure(app =>
+            {
+                app.UseRouting();
+                app.UseEndpoints(e =>
+                {
+                    e.MapControllers();
+                });
+            })
+                .UseKestrel()
+                .UseUrls("http://*:8123/")
+                .Build().Run();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

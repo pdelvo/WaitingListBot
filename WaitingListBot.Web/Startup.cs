@@ -4,11 +4,13 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace WaitingListBot.Web
@@ -25,7 +27,11 @@ namespace WaitingListBot.Web
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddHttpClient();
             services.AddRazorPages().AddRazorRuntimeCompilation();
+            services.AddHealthChecks()
+                .AddCheck("Bot health", new HttpHealthCheck("http://localhost:8123/Guild/List"), HealthStatus.Unhealthy);
+            services.AddSingleton(typeof(BackendService), p => new BackendService(new Uri("http://localhost:8123/"), p.GetRequiredService<IHttpClientFactory>()));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -58,6 +64,7 @@ namespace WaitingListBot.Web
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
+                endpoints.MapHealthChecks("/hc");
             });
         }
     }

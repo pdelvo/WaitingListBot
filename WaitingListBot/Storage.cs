@@ -11,12 +11,12 @@ namespace WaitingListBot
 {
     public class Storage
     {
-        const string directory = "guilds";
+        public const string GuildDirectory = "guilds";
         private ulong guildId;
 
         static Storage()
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(GuildDirectory);
         }
 
         public Storage()
@@ -30,14 +30,14 @@ namespace WaitingListBot
         public void Save()
         {
             var json = JsonConvert.SerializeObject(this);
-            File.WriteAllText(Path.Combine(directory, guildId + ".json"), json);
+            File.WriteAllText(Path.Combine(GuildDirectory, guildId + ".json"), json);
         }
 
         public static Storage LoadForGuild(ulong guildId)
         {
             try
             {
-                var storage = JsonConvert.DeserializeObject<Storage>(File.ReadAllText(Path.Combine(directory, guildId + ".json")));
+                var storage = JsonConvert.DeserializeObject<Storage>(File.ReadAllText(Path.Combine(GuildDirectory, guildId + ".json")));
                 storage.guildId = guildId;
                 return storage;
             }

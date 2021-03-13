@@ -96,7 +96,7 @@ namespace WaitingListBot
                 {
                     try
                     {
-                        string.Format(format, new object[i]);
+                        _ = string.Format(format, new object[i]);
 
                         formatOk = true;
                         break;

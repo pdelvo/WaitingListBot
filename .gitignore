@@ -340,3 +340,4 @@ ASALocalRun/
 healthchecksdb
 /WaitingListBot/token.txt
 /WaitingListBot/token-dev.txt
+/WaitingListBot/guilds

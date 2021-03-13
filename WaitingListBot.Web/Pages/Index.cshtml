@@ -1,41 +1,92 @@
 ﻿@page
+@using Microsoft.Extensions.Diagnostics.HealthChecks
 @model IndexModel
+@inject HealthCheckService healthCheckService
+@inject BackendService backendService
 @{
     ViewData["Title"] = "Home page";
 }
+@{
+    var healthReport = await healthCheckService.CheckHealthAsync();
+}
+@{
+    string HealthStatusToColor(HealthStatus status)
+    {
+        if (status == HealthStatus.Healthy)
+        {
+            return "green";
+        }
+        else
+        {
+            return "red";
+        }
+    }
+}
 
-<div class="text">
-    <h3 class="display-4">What is this bot used for?</h3>
-    <p>The main usecase for this bot is to allow streamers to schedule private matches with their viewers. Viewers can enter a waiting list and will receive information (like a name and password) to enter a match if it is their turn to play.</p>
-    <p>The bot is able to prioritize a specific role (for example Twitch subscribers). It also allows players to reenter the list after they already played with a lower priority than players that have not.</p>
-    <p></p>
+<div class="row">
+    <div class="col-md-3 order-md-2 mb-3">
+        <span class="text-muted">Status</span>
+        <ul class="list-group mb-3">
+            <li class="list-group-item d-flex justify-content-between lh-condensed">
+                <div>
+                    <h6 class="my-0">Bot Status</h6>
+                    <small class="text-muted">Whether or not the Bot is working</small>
+                </div>
 
-    <h3 class="display-4">How do I set up the bot?</h3>
-    <ul>
-        <li>The first step is to <a target="_blank" href="https://discord.com/api/oauth2/authorize?client_id=813143877615484978&permissions=84992&scope=bot">invite the bot to your Discord server</a></li>
-        <li>Users that have ban privileges (lets call them Moderators) can control the bot. This is required for the next steps</li>
-        <li>The default prefix for all commands is <code>wl.</code>. This can be changed by using <code>wl.prefix [new prefix]</code>. If you change the prefix addapt the following commands appropriately</li>
-        <li>Create a channel for the waiting list. Use the command <code>wl.waitingchannel #waiting-channel</code> to select it. The bot will only answer to users that are not moderators in that channel.
-        <b>If the <code>wl.list</code> command does not display the list of players make sure that the Bot has the Embed Links permission in the channel.</b></li>
-        <li>Select the role for subscribers by using <code>wl.setsubrole @@TheSubRole</code> to give those users priority over non-subs. If this is not done everyone is treated equally.</li>
-        <li>
-            Customize the DM that is sent to invited players: The bot comes with a default message it will send to an invited player. You can see the current message using <code>wl.dmformat</code>.
-            The parameters <code>{0}</code> and <code>{1}</code> have to be specified when inviting the players. This can be changed using <code>wl.dmformat [the new text]</code>. You can use as many placeholders as you like.
-            They have to be numbered in the order you whish to pass them to the command that invites the players.
-        </li>
-        <li>It is best practice to have a channel that is both accessible by moderators and the bot (but not other members of the server) to use the moderator specific commands and later invite the players.
-        Otherwise other members on the server might see login information that they were not supposed to see</li>
-    </ul>
-    <h3 class="display-4">How do I use the bot?</h3>
-    <ul>
-        <li>To open the waiting list for users to join use the <code>wl.enable</code> command</li>
-        <li>Members can now join the waiting list using either <code>wl.play</code> or <code>wl.join</code>.</li>
-        <li>Everyone can view the current list by using the <code>wl.list</code> command.</li>
-        <li>To invite players from the list you use the <code>wl.next [number of players to invite] [1st argument] [2nd argument] ...</code>. The number of arguments required depends on the number of parameters defined in the DM format in the set up process.
-        If the number of players to invite is smaller than the number of players in the list the bot will <b>not</b> invite any players. You can then either lower the number or encourage more members to join the list. Invited players will be removed from the list.</li>
-        <li>It is possible that someone might have disabled DMs by bots. In that case everyone else will still be invited but you will get an error message. You might want to manually invite that member via DM.</li>
-        <li>Members that have already played can rejoin the list again. They will have a lower priority than players that have played less often.</li>
-        <li>When the games are over you can use <code>wl.disable</code> to disable the list. This means no one is able to join it. It does not clear it. So you can still invite those that are already on it.</li>
-        <li>Use the <code>wl.nuke</code> command to clear the list <b>and</b> clear the play counter so that the next time everyone starts with 0 games played.</li>
-    </ul>
+                <span class="" style="color: @HealthStatusToColor(healthReport.Status)">@healthReport.Status</span>
+            </li>
+            @if (healthReport.Status == HealthStatus.Healthy)
+            {
+                <li class="list-group-item d-flex justify-content-between lh-condensed">
+                    <div>
+                        <h6 class="my-0">Number of Servers</h6>
+                        <small class="text-muted">The number of servers using this bot</small>
+                    </div>
+
+                    <span class="text-muted">@await backendService.GetNumberOfGuilds()</span>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="col-md-9 order-md-1">
+        <h4 class="mb-3">What is this bot used for?</h4>
+        <p>The main usecase for this bot is to allow streamers to schedule private matches with their viewers. Viewers can enter a waiting list and will receive information (like a name and password) to enter a match if it is their turn to play.</p>
+        <p>The bot is able to prioritize a specific role (for example Twitch subscribers). It also allows players to reenter the list after they already played with a lower priority than players that have not.</p>
+        <p></p>
+
+        <h4 class="mb-3">How do I set up the bot?</h4>
+        <ul>
+            <li>The first step is to <a target="_blank" href="https://discord.com/api/oauth2/authorize?client_id=813143877615484978&permissions=84992&scope=bot">invite the bot to your Discord server</a></li>
+            <li>Users that have ban privileges (lets call them Moderators) can control the bot. This is required for the next steps</li>
+            <li>The default prefix for all commands is <code>wl.</code>. This can be changed by using <code>wl.prefix [new prefix]</code>. If you change the prefix addapt the following commands appropriately</li>
+            <li>
+                Create a channel for the waiting list. Use the command <code>wl.waitingchannel #waiting-channel</code> to select it. The bot will only answer to users that are not moderators in that channel.
+                <b>If the <code>wl.list</code> command does not display the list of players make sure that the Bot has the Embed Links permission in the channel.</b>
+            </li>
+            <li>Select the role for subscribers by using <code>wl.setsubrole @@TheSubRole</code> to give those users priority over non-subs. If this is not done everyone is treated equally.</li>
+            <li>
+                Customize the DM that is sent to invited players: The bot comes with a default message it will send to an invited player. You can see the current message using <code>wl.dmformat</code>.
+                The parameters <code>{0}</code> and <code>{1}</code> have to be specified when inviting the players. This can be changed using <code>wl.dmformat [the new text]</code>. You can use as many placeholders as you like.
+                They have to be numbered in the order you whish to pass them to the command that invites the players.
+            </li>
+            <li>
+                It is best practice to have a channel that is both accessible by moderators and the bot (but not other members of the server) to use the moderator specific commands and later invite the players.
+                Otherwise other members on the server might see login information that they were not supposed to see
+            </li>
+        </ul>
+        <h4 class="mb-3">How do I use the bot?</h4>
+        <ul>
+            <li>To open the waiting list for users to join use the <code>wl.enable</code> command</li>
+            <li>Members can now join the waiting list using either <code>wl.play</code> or <code>wl.join</code>.</li>
+            <li>Everyone can view the current list by using the <code>wl.list</code> command.</li>
+            <li>
+                To invite players from the list you use the <code>wl.next [number of players to invite] [1st argument] [2nd argument] ...</code>. The number of arguments required depends on the number of parameters defined in the DM format in the set up process.
+                If the number of players to invite is smaller than the number of players in the list the bot will <b>not</b> invite any players. You can then either lower the number or encourage more members to join the list. Invited players will be removed from the list.
+            </li>
+            <li>It is possible that someone might have disabled DMs by bots. In that case everyone else will still be invited but you will get an error message. You might want to manually invite that member via DM.</li>
+            <li>Members that have already played can rejoin the list again. They will have a lower priority than players that have played less often.</li>
+            <li>When the games are over you can use <code>wl.disable</code> to disable the list. This means no one is able to join it. It does not clear it. So you can still invite those that are already on it.</li>
+            <li>Use the <code>wl.nuke</code> command to clear the list <b>and</b> clear the play counter so that the next time everyone starts with 0 games played.</li>
+        </ul>
+    </div>
 </div>
