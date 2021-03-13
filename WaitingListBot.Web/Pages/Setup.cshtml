@@ -1,0 +1,25 @@
+﻿@page
+@model WaitingListBot.Web.Pages.SetupModel
+@{
+        ViewData["Title"] = "Setup";
+}
+<h2>How do I set up the bot?</h2>
+<ul class="list-group">
+    <li class="list-group-item">The first step is to <a target="_blank" href="https://discord.com/api/oauth2/authorize?client_id=813143877615484978&permissions=84992&scope=bot">invite the bot to your Discord server</a></li>
+    <li class="list-group-item">Users that have ban privileges (lets call them Moderators) can control the bot. This is required for the next steps</li>
+    <li class="list-group-item">The default prefix for all commands is <code>wl.</code>. This can be changed by using <code>wl.prefix [new prefix]</code>. If you change the prefix addapt the following commands appropriately</li>
+    <li class="list-group-item">
+        Create a channel for the waiting list. Use the command <code>wl.waitingchannel #waiting-channel</code> to select it. The bot will only answer to users that are not moderators in that channel.
+        <b>If the <code>wl.list</code> command does not display the list of players make sure that the Bot has the Embed Links permission in the channel.</b>
+    </li>
+    <li class="list-group-item">Select the role for subscribers by using <code>wl.setsubrole @@TheSubRole</code> to give those users priority over non-subs. If this is not done everyone is treated equally.</li>
+    <li class="list-group-item">
+        Customize the DM that is sent to invited players: The bot comes with a default message it will send to an invited player. You can see the current message using <code>wl.dmformat</code>.
+        The parameters <code>{0}</code> and <code>{1}</code> have to be specified when inviting the players. This can be changed using <code>wl.dmformat [the new text]</code>. You can use as many placeholders as you like.
+        They have to be numbered in the order you whish to pass them to the command that invites the players.
+    </li>
+    <li class="list-group-item">
+        It is best practice to have a channel that is both accessible by moderators and the bot (but not other members of the server) to use the moderator specific commands and later invite the players.
+        Otherwise other members on the server might see login information that they were not supposed to see
+    </li>
+</ul>

@@ -1,0 +1,19 @@
+﻿@page
+@model WaitingListBot.Web.Pages.UsageModel
+@{
+    ViewData["Title"] = "Usage";
+}
+<h2>How do I use the bot?</h2>
+<ul class="list-group">
+    <li class="list-group-item">To open the waiting list for users to join use the <code>wl.enable</code> command</li>
+    <li class="list-group-item">Members can now join the waiting list using either <code>wl.play</code> or <code>wl.join</code>.</li>
+    <li class="list-group-item">Everyone can view the current list by using the <code>wl.list</code> command.</li>
+    <li class="list-group-item">
+        To invite players from the list you use the <code>wl.next [number of players to invite] [1st argument] [2nd argument] ...</code>. The number of arguments required depends on the number of parameters defined in the DM format in the set up process.
+        If the number of players to invite is smaller than the number of players in the list the bot will <b>not</b> invite any players. You can then either lower the number or encourage more members to join the list. Invited players will be removed from the list.
+    </li>
+    <li class="list-group-item">It is possible that someone might have disabled DMs by bots. In that case everyone else will still be invited but you will get an error message. You might want to manually invite that member via DM.</li>
+    <li class="list-group-item">Members that have already played can rejoin the list again. They will have a lower priority than players that have played less often.</li>
+    <li class="list-group-item">When the games are over you can use <code>wl.disable</code> to disable the list. This means no one is able to join it. It does not clear it. So you can still invite those that are already on it.</li>
+    <li class="list-group-item">Use the <code>wl.nuke</code> command to clear the list <b>and</b> clear the play counter so that the next time everyone starts with 0 games played.</li>
+</ul>

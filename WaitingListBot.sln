@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.31005.135
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaitingListBot", "WaitingListBot\WaitingListBot.csproj", "{905EA8D2-0A39-4CF1-B198-C9D6FC34099F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaitingListBot.Web", "WaitingListBot.Web\WaitingListBot.Web.csproj", "{596AA8CE-41D1-4F43-9EB6-C70CA674F641}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaitingListBot.Web", "WaitingListBot.Web\WaitingListBot.Web.csproj", "{596AA8CE-41D1-4F43-9EB6-C70CA674F641}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

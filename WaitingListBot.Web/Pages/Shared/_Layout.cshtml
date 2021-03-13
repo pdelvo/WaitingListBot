@@ -1,4 +1,7 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.Extensions.Diagnostics.HealthChecks
+@inject HealthCheckService healthCheckService
+@inject BackendService backendService
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -9,28 +12,79 @@
 </head>
 <body class="bg-light">
     <header>
-        <div class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index"><img src="~/avatar2.png" alt="Avatar" style="height: 2em;" /> Waiting List Bot</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                @*<div class="navbar-collapse collapse">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>*@
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark" style="margin-bottom: 20px;">
+            <a class="navbar-brand" asp-area="" asp-page="/Index"><img src="~/avatar2.png" alt="Avatar" style="width: 30px; height: 30px;" /> Waiting List Bot</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-page="/Setup">Setup</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-page="/Usage">Usage</a>
+                    </li>
+                </ul>
             </div>
-        </div>
+        </nav>
     </header>
     <div class="container">
-            @RenderBody()
+        @{
+            var healthReport = await healthCheckService.CheckHealthAsync();
+        }
+        @{
+            string HealthStatusToColor(HealthStatus status)
+            {
+                if (status == HealthStatus.Healthy)
+                {
+                    return "green";
+                }
+                else
+                {
+                    return "red";
+                }
+            }
+        }
+
+        <div class="row">
+            <div class="col-md-3 order-md-2 mb-3">
+                <span class="text-muted">Status</span>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between lh-condensed">
+                        <div>
+                            <h6 class="my-0">Bot Health</h6>
+                            <small class="text-muted">Whether or not the Bot is working</small>
+                        </div>
+
+                        <span class="" style="color: @HealthStatusToColor(healthReport.Status)">@healthReport.Status</span>
+                    </li>
+                    @if (healthReport.Status == HealthStatus.Healthy)
+                    {
+                        <li class="list-group-item d-flex justify-content-between lh-condensed">
+                            <div>
+                                <h6 class="my-0">Servers</h6>
+                                <small class="text-muted">The number of servers using this bot</small>
+                            </div>
+
+                            <span class="text-muted">@await backendService.GetNumberOfGuilds()</span>
+                        </li>
+                    }
+                    <li class="list-group-item d-flex justify-content-between lh-condensed">
+                        <div>
+                            <h6 class="my-0"><a href="https://discord.gg/kk8FjnrNVm">Discord</a></h6>
+                            <small class="text-muted">Join my discord with questions and feature requests</small>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-9 order-md-1">
+                @RenderBody()
+            </div>
+        </div>
     </div>
 
     <footer class="border-top footer text-muted">
