@@ -31,7 +31,7 @@ namespace WaitingListBot
 
         [Command("setsubrole")]
         [Summary("Sets the Id for the sub role.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task SetAsSubRole([Summary("The role of subscribers.")] IRole role)
         {
             _storage.SubRoleId = role.Id;
@@ -41,7 +41,7 @@ namespace WaitingListBot
 
         [Command("enable")]
         [Summary("Enables the waiting list.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task Enable()
         {
             _storage.IsEnabled = true;
@@ -57,7 +57,7 @@ namespace WaitingListBot
 
         [Command("disable")]
         [Summary("Disables the waiting list.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task Disable()
         {
             _storage.IsEnabled = false;
@@ -72,7 +72,7 @@ namespace WaitingListBot
 
         [Command("waitingchannel")]
         [Summary("Selects the channel as the waiting list channel.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task MarkAsWaitingChannelAsync(IGuildChannel channel)
         {
             _storage.WaitingListChannelId = channel.Id;
@@ -82,7 +82,7 @@ namespace WaitingListBot
 
         [Command("dmformat")]
         [Summary("Gets or sets the DM format.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task DMFormatAsync([Remainder][Summary("The format string for the DM messages.")] string format = null)
         {
             if (format == null)
@@ -120,7 +120,7 @@ namespace WaitingListBot
 
         [Command("prefix")]
         [Summary("Gets or sets the command prefix.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task PrefixFormat([Remainder][Summary("The format string for the DM messages.")] string prefix = null)
         {
             if (prefix == null)
@@ -137,7 +137,7 @@ namespace WaitingListBot
 
         [Command("nuke")]
         [Summary("Clears the waiting list.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task ClearWaitingListAsync()
         {
             _storage.PlayCounter.Clear();
@@ -148,7 +148,7 @@ namespace WaitingListBot
 
         [Command("next")]
         [Summary("Notifies the next players.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
             var list = GetSortedList();
@@ -325,7 +325,7 @@ namespace WaitingListBot
 
         [Command("modhelp")]
         [Summary("Shows this help message.")]
-        [RequireUserPermission(GuildPermission.BanMembers, ErrorMessage = "You do not have permissions to use this command.")]
+        [ModPermission]
         public async Task ModHelp()
         {
             List<CommandInfo> commands = _commandService.Commands.ToList();
