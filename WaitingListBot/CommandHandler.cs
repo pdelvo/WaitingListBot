@@ -80,7 +80,7 @@ namespace WaitingListBot
             {
                 // Only allow mods to issue commands outside the waiting list channel
                 var guildUser = message.Author as IGuildUser;
-                if (guildUser?.GuildPermissions.BanMembers == false)
+                if (!ModPermissionAttribute.HasModPermission(guildUser).IsSuccess)
                 {
                     return;
                 }

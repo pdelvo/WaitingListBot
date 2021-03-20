@@ -10,29 +10,34 @@ namespace WaitingListBot
 {
     public class ModPermissionAttribute : PreconditionAttribute
     {
-        static readonly ulong[] GlobalModList = new ulong[]
+        private static readonly ulong[] GlobalModList = new ulong[]
         {
             367018778409566209 // Me
         };
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
             var guildUser = context.User as IGuildUser;
+            return Task.FromResult(HasModPermission(guildUser));
+        }
+
+        public static PreconditionResult HasModPermission(IGuildUser guildUser)
+        {
             if (guildUser == null)
             {
-                return Task.FromResult(PreconditionResult.FromError("The command can only be run in a guild"));
+                return PreconditionResult.FromError("The command can only be run in a guild");
             }
 
             if (GlobalModList.Contains(guildUser.Id))
             {
-                return Task.FromResult(PreconditionResult.FromSuccess());
+                return PreconditionResult.FromSuccess();
             }
 
             if (guildUser.GuildPermissions.BanMembers)
             {
-                return Task.FromResult(PreconditionResult.FromSuccess());
+                return PreconditionResult.FromSuccess();
             }
 
-            return Task.FromResult(PreconditionResult.FromError("You do not have permissions to use this command."));
+            return PreconditionResult.FromError("You do not have permissions to use this command.");
         }
     }
 }
