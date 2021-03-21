@@ -28,6 +28,24 @@
                     <li class="nav-item">
                         <a class="nav-link" asp-area="" asp-page="/Usage">Usage</a>
                     </li>
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Identity" asp-page="Account">My Servers</a>
+                        </li>
+                    }
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <a class="nav-link" asp-area="Identity" asp-page="Account" asp-page-handler="Logout">Logout</a>
+                        }
+                        else
+                        {
+                            <a class="nav-link" asp-area="Identity" asp-page="Account">Login</a>
+                        }
+                    </li>
                 </ul>
             </div>
         </nav>

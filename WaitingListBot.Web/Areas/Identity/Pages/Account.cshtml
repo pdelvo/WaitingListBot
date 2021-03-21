@@ -1,0 +1,16 @@
+﻿@page
+@model WaitingListBot.Web.Areas.Identity.Pages.AccountModel
+@{
+
+}
+
+<h1>Hello @User.Identity.Name</h1>
+@if (Model.Servers != null)
+{
+<ul class="list-group">
+    @foreach (var server in Model.Servers)
+    {
+        <li class="list-group-item"><img src="https://cdn.discordapp.com/icons/@(server.Id)/@(server.Icon).png?size=64"/> <span class="text-muted">@server.Name</span></li>
+    }
+</ul>
+}
