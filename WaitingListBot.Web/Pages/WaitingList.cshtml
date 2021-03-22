@@ -18,24 +18,28 @@
 }
 @if (!Model.Minimal)
 {
-    <h1 class="my-0"><img src="@Model.GuildIconUrl?size=64" alt="@Model.GuildName" />@Model.GuildName</h1>
+    <h1 class="my-0"><img src="@Model.GuildIconUrl" alt="@Model.GuildName" style="height: 1.5em;" />@Model.GuildName</h1>
 }
 <table id="userList" class="table @tableClass" v-if="user.counter > 0">
     <thead>
         <tr>
             <th scope="col">#</th>
-            <th scope="col"></th>
+            <th scope="col">Player</th>
         </tr>
     </thead>
     <tbody>
         <tr v-for="(user, index) in users">
             <th scope="row">
-                {{increment(index)}}
+                {{increment(index)}}.
             </th>
-            <td>{{user.name}} <span class="sub" v-if="user.isSub">(Sub)</span> <span v-if="user.counter > 0">(Played {{user.counter}} time<span v-if="user.counter > 1">s</span>)</span></td>
+            <td>{{user.name}} <span class="badge badge-primary" v-if="user.isSub">Sub</span> <span v-if="user.counter > 0" class="badge badge-warning">Played {{user.counter}} time<span v-if="user.counter > 1">s</span></span></td>
         </tr>
     </tbody>
 </table>
+@if (!Model.Minimal)
+{
+    <a asp-route-minimal="true">Minimal version</a>
+}
 <script type="text/javascript">
         const app = Vue.createApp({
             data() {
