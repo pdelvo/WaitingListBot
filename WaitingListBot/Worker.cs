@@ -20,6 +20,7 @@ namespace WaitingListBot
     {
         static IServiceCollection serviceCollection;
         DiscordSocketClient client;
+        StorageFactory storageFactory = new StorageFactory();
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -33,6 +34,8 @@ namespace WaitingListBot
 
             client.Log += Log;
             client.GuildMemberUpdated += GuildMemberUpdated;
+            client.GuildUpdated += Client_GuildUpdated;
+            client.GuildAvailable += Client_GuildAvailable;
 
 #if DEBUG
             var token = File.ReadAllText("token-dev.txt");
@@ -49,7 +52,7 @@ namespace WaitingListBot
 
             serviceCollection = new ServiceCollection();
             serviceCollection.AddSingleton(typeof(CommandService), commandService);
-            serviceCollection.AddSingleton(typeof(StorageFactory), new StorageFactory());
+            serviceCollection.AddSingleton(typeof(StorageFactory), storageFactory);
 
             var handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
 
@@ -77,6 +80,32 @@ namespace WaitingListBot
                 .UseKestrel()
                 .UseUrls("http://*:8123/")
                 .Build().Run();
+        }
+
+        private Task Client_GuildAvailable(SocketGuild guild)
+        {
+            UpdateGuildInformation(guild);
+
+            return Task.CompletedTask;
+        }
+
+        private Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
+        {
+            UpdateGuildInformation(newGuild);
+
+            return Task.CompletedTask;
+        }
+
+        private void UpdateGuildInformation(SocketGuild guild)
+        {
+            var guildStorage = storageFactory.GetStorage(guild.Id);
+            guildStorage.Information = new GuildInformation()
+            {
+                Name = guild.Name,
+                IconUrl = $"https://cdn.discordapp.com/icons/{guild.Id}/{guild.IconId}.png",
+                Description = guild.Description
+            };
+            guildStorage.Save();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

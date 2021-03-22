@@ -47,6 +47,8 @@ namespace WaitingListBot
             }
         }
 
+        public GuildInformation Information { get; set; }
+
         public ulong WaitingListChannelId { get; set; }
 
         public List<UserInList> List { get; set; }

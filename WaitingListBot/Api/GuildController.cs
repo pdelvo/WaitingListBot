@@ -33,5 +33,14 @@ namespace WaitingListBot.Api
 
             return storage?.GetSortedList();
         }
+
+        [HttpGet]
+        [Route("{guildId}/Info")]
+        public GuildInformation GetGuildInformation(ulong guildId)
+        {
+            var storage = storageFactory.GetStorage(guildId);
+
+            return storage.Information;
+        }
     }
 }

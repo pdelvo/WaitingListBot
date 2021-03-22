@@ -18,15 +18,25 @@ namespace WaitingListBot.Web.Areas.Identity.Pages
         [BindProperty(SupportsGet = true)]
         public bool Minimal { get; set; }
 
+        public string GuildName { get; set; }
+
+        public string GuildIconUrl { get; set; }
+
+        public string GuildDescription { get; set; }
+
         public WaitingListModel(HealthCheckService healthCheckService, BackendService backendService)
         {
             this.healthCheckService = healthCheckService;
             this.backendService = backendService;
         }
         public ulong Id { get; set; }
-        public IActionResult OnGet(ulong id)
+        public async Task<IActionResult> OnGet(ulong id)
         {
             this.Id = id;
+            var guildInformation = await backendService.GetGuildInformation(id);
+            GuildName = guildInformation?.Name;
+            GuildIconUrl = guildInformation?.IconUrl;
+            GuildDescription = guildInformation?.Description;
             return Page();
         }
         public async Task<JsonResult> OnGetData(ulong id)

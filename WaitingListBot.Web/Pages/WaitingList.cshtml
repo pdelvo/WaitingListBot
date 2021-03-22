@@ -1,22 +1,41 @@
 ﻿@page "{id}"
 @model WaitingListBot.Web.Areas.Identity.Pages.WaitingListModel
 @{
+    var tableClass = "";
+    var ulClass = "";
     if (Model.Minimal)
     {
         Layout = "/Pages/Shared/_Minimal.cshtml";
+        ulClass = "list-inline";
+        tableClass = "table-dark";
+    }
+    else
+    {
+        tableClass = "";
+        ulClass = "list-group";
     }
     ViewData["Title"] = "Waiting List";
 }
 @if (!Model.Minimal)
 {
-    <h1 class="my-0">Waiting List</h1>
+    <h1 class="my-0"><img src="@Model.GuildIconUrl?size=64" alt="@Model.GuildName" />@Model.GuildName</h1>
 }
-
-<ul id="userList" class="list-inline">
-    <li v-for="(user, index) in users">
-        <span class="lead">{{increment(index)}}. {{user.name}} <span class="sub" v-if="user.isSub">(Sub)</span> <span v-if="user.counter > 0">(Played {{user.counter}} time<span v-if="user.counter > 1">s</span>)</span></span>
-    </li>
-</ul>
+<table id="userList" class="table @tableClass" v-if="user.counter > 0">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr v-for="(user, index) in users">
+            <th scope="row">
+                {{increment(index)}}
+            </th>
+            <td>{{user.name}} <span class="sub" v-if="user.isSub">(Sub)</span> <span v-if="user.counter > 0">(Played {{user.counter}} time<span v-if="user.counter > 1">s</span>)</span></td>
+        </tr>
+    </tbody>
+</table>
 <script type="text/javascript">
         const app = Vue.createApp({
             data() {
@@ -26,7 +45,7 @@
             },
             methods: {
                async reloadData() {
-                    var res = await fetch('/Identity/WaitingList/@(Model.Id)?handler=data', {
+                    var res = await fetch('/WaitingList/@(Model.Id)?handler=data', {
                         method: 'get',
                         headers: {
                             'content-type': 'application/json'
@@ -48,5 +67,5 @@
         });
         const vm = app.mount('#userList');
         vm.reloadData();
-        window.setInterval(vm.reloadData, 5000);
+        window.setInterval(vm.reloadData, 1000);
 </script>

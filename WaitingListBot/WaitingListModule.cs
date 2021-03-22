@@ -295,7 +295,7 @@ namespace WaitingListBot
                 description += "\r\n";
             }
             embedBuilder.Description = description;
-            embedBuilder.AddField("\u200B", "[View the list in real time](https://wl.pdelvo.com/Identity/WaitingList/" + Context.Guild.Id + ")");
+            embedBuilder.AddField("\u200B", "[View this list in real time](https://wl.pdelvo.com/WaitingList/" + Context.Guild.Id + ")");
 
             Embed embed = embedBuilder.Build();
             await Context.Message.ReplyAsync($"Here are the next players in line:", embed: embed, allowedMentions: AllowedMentions.None);

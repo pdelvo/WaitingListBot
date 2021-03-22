@@ -49,5 +49,13 @@ namespace WaitingListBot.Web
 
             return JsonConvert.DeserializeObject<List<UserInListWithCounter>>(result);
         }
+
+        public async Task<GuildInformation> GetGuildInformation(ulong guildId)
+        {
+            var client = GetHttpClient();
+            var result = await client.GetStringAsync($"Guild/{guildId}/Info");
+
+            return JsonConvert.DeserializeObject<GuildInformation>(result);
+        }
     }
 }
