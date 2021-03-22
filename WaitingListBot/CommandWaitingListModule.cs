@@ -8,24 +8,31 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using WaitingListBot.Model;
+
 namespace WaitingListBot
 {
     [RequireContext(ContextType.Guild)]
-    public class WaitingListModule : ModuleBase<SocketCommandContext>
+    public class CommandWaitingListModule : ModuleBase<SocketCommandContext>
     {
-        readonly StorageFactory _storageFactory;
-        readonly CommandService _commandService;
-        Storage _storage;
+        readonly StorageFactory storageFactory;
+        readonly CommandService commandService;
+        Storage storage;
+        IWaitingList waitingList;
 
-        public WaitingListModule(CommandService commandService, StorageFactory storageFactory)
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public CommandWaitingListModule(CommandService commandService, StorageFactory storageFactory)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            _commandService = commandService;
-            _storageFactory = storageFactory;
+            this.commandService = commandService;
+            this.storageFactory = storageFactory;
+            storage = new Storage();
         }
 
         protected override void BeforeExecute(CommandInfo command)
         {
-            _storage = _storageFactory.GetStorage(Context.Guild.Id);
+            waitingList = new CommandWaitingList(storageFactory.GetStorage(Context.Guild.Id), Context.Client.Rest, Context.Guild.Id);
+            storage = storageFactory.GetStorage(Context.Guild.Id);
             base.BeforeExecute(command);
         }
 
@@ -34,8 +41,8 @@ namespace WaitingListBot
         [ModPermission]
         public async Task SetAsSubRole([Summary("The role of subscribers.")] IRole role)
         {
-            _storage.SubRoleId = role.Id;
-            _storage.Save();
+            storage.SubRoleId = role.Id;
+            storage.Save();
             await Context.Message.ReplyAsync("Sub role has been set");
         }
 
@@ -44,14 +51,14 @@ namespace WaitingListBot
         [ModPermission]
         public async Task Enable()
         {
-            _storage.IsEnabled = true;
-            _storage.Save();
+            storage.IsEnabled = true;
+            storage.Save();
             await Context.Message.ReplyAsync("Waiting list is enabled");
 
 
-            if (Context.Client.GetChannel(_storage.WaitingListChannelId) is ISocketMessageChannel channel)
+            if (Context.Client.GetChannel(storage.WaitingListChannelId) is ISocketMessageChannel channel)
             {
-                await channel.SendMessageAsync($"The waiting list is now open! Use {_storage.CommandPrefix}play to join");
+                _ = await channel.SendMessageAsync($"The waiting list is now open! Use {storage.CommandPrefix}play to join");
             }
         }
 
@@ -60,11 +67,11 @@ namespace WaitingListBot
         [ModPermission]
         public async Task Disable()
         {
-            _storage.IsEnabled = false;
-            _storage.Save();
+            storage.IsEnabled = false;
+            storage.Save();
             await Context.Message.ReplyAsync("Waiting list is disabled");
 
-            if (Context.Client.GetChannel(_storage.WaitingListChannelId) is ISocketMessageChannel channel)
+            if (Context.Client.GetChannel(storage.WaitingListChannelId) is ISocketMessageChannel channel)
             {
                 await channel.SendMessageAsync($"The waiting list is now closed. You can no longer join.");
             }
@@ -75,19 +82,19 @@ namespace WaitingListBot
         [ModPermission]
         public async Task MarkAsWaitingChannelAsync(IGuildChannel channel)
         {
-            _storage.WaitingListChannelId = channel.Id;
-            _storage.Save();
+            storage.WaitingListChannelId = channel.Id;
+            storage.Save();
             await Context.Message.ReplyAsync("Channel has been set as waiting channel");
         }
 
         [Command("dmformat")]
         [Summary("Gets or sets the DM format.")]
         [ModPermission]
-        public async Task DMFormatAsync([Remainder][Summary("The format string for the DM messages.")] string format = null)
+        public async Task DMFormatAsync([Remainder][Summary("The format string for the DM messages.")] string? format = null)
         {
             if (format == null)
             {
-                await Context.Message.ReplyAsync(_storage.DMMessageFormat ?? "");
+                await Context.Message.ReplyAsync(storage.DMMessageFormat ?? "");
             }
             else
             {
@@ -112,8 +119,8 @@ namespace WaitingListBot
                     return;
                 }
 
-                _storage.DMMessageFormat = format;
-                _storage.Save();
+                storage.DMMessageFormat = format;
+                storage.Save();
                 await Context.Message.ReplyAsync("Message format has been changed.");
             }
         }
@@ -121,16 +128,16 @@ namespace WaitingListBot
         [Command("prefix")]
         [Summary("Gets or sets the command prefix.")]
         [ModPermission]
-        public async Task PrefixFormat([Remainder][Summary("The format string for the DM messages.")] string prefix = null)
+        public async Task PrefixFormat([Remainder][Summary("The format string for the DM messages.")] string? prefix = null)
         {
             if (prefix == null)
             {
-                await Context.Message.ReplyAsync("The prefix is: " + _storage.CommandPrefix ?? "");
+                await Context.Message.ReplyAsync("The prefix is: " + storage.CommandPrefix ?? "");
             }
             else
             {
-                _storage.CommandPrefix = prefix;
-                _storage.Save();
+                storage.CommandPrefix = prefix;
+                storage.Save();
                 await Context.Message.ReplyAsync("Prefix has been changed.");
             }
         }
@@ -140,9 +147,14 @@ namespace WaitingListBot
         [ModPermission]
         public async Task ClearWaitingListAsync()
         {
-            _storage.PlayCounter.Clear();
-            _storage.List.Clear();
-            _storage.Save();
+            storage.PlayCounter.Clear();
+            storage.List.Clear();
+            storage.Save();
+
+            await ReactionWaitingListModule.RemoveAllPlayerReactionsAsync(Context.Guild, storage);
+
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+
             await Context.Channel.SendFileAsync("nuke.jpg", "List has been cleared");
         }
 
@@ -151,60 +163,29 @@ namespace WaitingListBot
         [ModPermission]
         public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
-            var list = _storage.GetSortedList();
 
-            if (list.Count < numberOfPlayers)
+            var (result, nextPlayers) = await waitingList.GetNextPlayersAsync(arguments, numberOfPlayers, true);
+
+            if (!result.Success || nextPlayers == null)
             {
-                await Context.Message.ReplyAsync($"Did not send invites. There are only {list.Count} players in the list.");
+                await Context.Message.ReplyAsync(result.Message);
                 return;
-            }
-            // Send invites
-
-            void IncreasePlayCounter(ulong id)
-            {
-                var entry = _storage.PlayCounter.SingleOrDefault(x => x.Id == id);
-
-                if (entry == null)
-                {
-                    _storage.PlayCounter.Add(new PlayCounter { Id = id, Counter = 1 });
-                }
-                else
-                {
-                    entry.Counter++;
-                }
             }
 
             string playerString = "";
 
-            var restClient = Context.Client.Rest;
-
             for (int i = 0; i < numberOfPlayers; i++)
             {
-                var player = list[i];
-                _storage.List.Remove(_storage.List.Single(x => x.Id == player.Id));
-                IncreasePlayCounter(player.Id);
-                _storage.Save();
+                var player = nextPlayers[i];
 
-                var restGuildUser = await restClient.GetGuildUserAsync(Context.Guild.Id, player.Id);
-                try
-                {
-                    var message =  string.Format(_storage.DMMessageFormat, arguments);
-
-                    playerString += restGuildUser.Mention + " ";
-
-                    await restGuildUser.SendMessageAsync(message);
-                }
-                catch (FormatException)
-                {
-                    await Context.Message.ReplyAsync("The arguments had the wrong format");
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    await Context.Message.ReplyAsync($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
-                }
+                var restGuildUser = await Context.Client.Rest.GetGuildUserAsync(Context.Guild.Id, player.Id);
+                playerString += restGuildUser.Mention + " ";
+                await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, player);
             }
+
             await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
+
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
         }
 
         [Command("join")]
@@ -227,37 +208,36 @@ namespace WaitingListBot
         [Command("play")]
         [Summary("Enters the waiting list.")]
         [ModPermission]
-        public async Task PlayAsync(IGuildUser guildUser)
+        public async Task PlayAsync(IGuildUser? guildUser)
         {
             if (guildUser == null)
             {
                 return;
             }
 
-            if (!_storage.IsEnabled)
+            if (!storage.IsEnabled)
             {
                 await Context.Message.ReplyAsync("The waiting list is closed.");
                 return;
             }
 
-            if (_storage.List.Any(x => x.Id == guildUser.Id))
+            if (storage.List.Any(x => x.Id == guildUser.Id))
             {
                 await Context.Message.ReplyAsync("You are already on the waiting list!");
             }
             else
             {
                 // Add user the the waiting list
-                UserInList userInList = new UserInList
+                UserInList userInList = new()
                 {
                     Id = guildUser.Id,
                     Name = guildUser.Nickname ?? guildUser.Username,
                     JoinTime = DateTime.Now,
-                    IsSub = guildUser.RoleIds.Contains(_storage.SubRoleId)
+                    IsSub = guildUser.RoleIds.Contains(storage.SubRoleId)
                 };
 
-
-                _storage.List.Add(userInList);
-                _storage.Save();
+                storage.List.Add(userInList);
+                storage.Save();
 
                 await Context.Message.ReplyAsync($"Waiting list joined!");
             }
@@ -272,22 +252,22 @@ namespace WaitingListBot
 
         [Command("leave")]
         [Summary("Leaves the waiting list.")]
-        public async Task LeaveAsync(IGuildUser guildUser)
+        public async Task LeaveAsync(IGuildUser? guildUser)
         {
             if (guildUser == null)
             {
                 return;
             }
 
-            var entry = _storage.List.SingleOrDefault(x => x.Id == guildUser.Id);
+            var entry = storage.List.SingleOrDefault(x => x.Id == guildUser.Id);
             if (entry == null)
             {
                 await Context.Message.ReplyAsync($"You are not on the waiting list!");
             }
             else
             {
-                _storage.List.Remove(entry);
-                _storage.Save();
+                storage.List.Remove(entry);
+                storage.Save();
 
                 await Context.Message.ReplyAsync($"You left the waiting list!");
             }
@@ -303,7 +283,7 @@ namespace WaitingListBot
                 Title = $"Waiting list"
             };
 
-            var sortedList = _storage.GetSortedList();
+            var sortedList = storage.GetSortedList();
             var description = "";
             int counter = 0;
 
@@ -328,8 +308,8 @@ namespace WaitingListBot
         [Summary("Shows this help message.")]
         public async Task Help()
         {
-            List<CommandInfo> commands = _commandService.Commands.ToList();
-            EmbedBuilder embedBuilder = new EmbedBuilder();
+            List<CommandInfo> commands = commandService.Commands.ToList();
+            EmbedBuilder embedBuilder = new();
 
             foreach (CommandInfo command in commands)
             {
@@ -339,7 +319,7 @@ namespace WaitingListBot
                 }
                 // Get the command Summary attribute information
                 string embedFieldText = command.Summary ?? "No description available\r\n";
-                string title = $"!{command.Name} ";
+                string title = $"{storage.CommandPrefix}{command.Name} ";
 
                 foreach (var item in command.Parameters)
                 {
@@ -357,14 +337,14 @@ namespace WaitingListBot
         [ModPermission]
         public async Task ModHelp()
         {
-            List<CommandInfo> commands = _commandService.Commands.ToList();
-            EmbedBuilder embedBuilder = new EmbedBuilder();
+            List<CommandInfo> commands = commandService.Commands.ToList();
+            EmbedBuilder embedBuilder = new();
 
             foreach (CommandInfo command in commands)
             {
                 // Get the command Summary attribute information
                 string embedFieldText = command.Summary ?? "No description available\r\n";
-                string title = $"!{command.Name} ";
+                string title = $"{storage.CommandPrefix}{command.Name} ";
 
                 foreach (var item in command.Parameters)
                 {

@@ -20,7 +20,7 @@ namespace WaitingListBot
             return Task.FromResult(HasModPermission(guildUser));
         }
 
-        public static PreconditionResult HasModPermission(IGuildUser guildUser)
+        public static PreconditionResult HasModPermission(IGuildUser? guildUser)
         {
             if (guildUser == null)
             {

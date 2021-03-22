@@ -9,7 +9,7 @@ namespace WaitingListBot
 {
     public class StorageFactory
     {
-        readonly Dictionary<ulong, Storage> storages = new Dictionary<ulong, Storage>();
+        readonly Dictionary<ulong, Storage> storages = new();
 
         public Storage GetStorage(ulong guildId)
         {

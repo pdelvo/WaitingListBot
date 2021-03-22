@@ -14,19 +14,23 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using WaitingListBot.Model;
+
 namespace WaitingListBot
 {
     internal class Worker : IHostedService
     {
-        static IServiceCollection serviceCollection;
-        DiscordSocketClient client;
-        StorageFactory storageFactory = new StorageFactory();
+        readonly IServiceCollection serviceCollection;
+        readonly DiscordSocketClient client;
+        readonly StorageFactory storageFactory = new();
+        readonly string token;
+        readonly CommandHandler handler;
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Worker()
         {
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages,
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages | GatewayIntents.GuildMessageReactions,
                 AlwaysDownloadUsers = true
             };
 
@@ -36,16 +40,14 @@ namespace WaitingListBot
             client.GuildMemberUpdated += GuildMemberUpdated;
             client.GuildUpdated += Client_GuildUpdated;
             client.GuildAvailable += Client_GuildAvailable;
+            client.ReactionAdded += Client_ReactionAdded;
+            client.ReactionRemoved += Client_ReactionRemoved;
 
 #if DEBUG
-            var token = File.ReadAllText("token-dev.txt");
+            token = File.ReadAllText("token-dev.txt");
 #else
-            var token = File.ReadAllText("token.txt");
+            token = File.ReadAllText("token.txt");
 #endif
-
-            await client.LoginAsync(TokenType.Bot, token);
-            await client.StartAsync();
-            await client.SetActivityAsync(new Game("wl.pdelvo.com", ActivityType.Watching));
 
             // Commands are not thread safe. So set the run mode to sync
             var commandService = new CommandService(new CommandServiceConfig { DefaultRunMode = RunMode.Sync, LogLevel = LogSeverity.Info });
@@ -54,7 +56,52 @@ namespace WaitingListBot
             serviceCollection.AddSingleton(typeof(CommandService), commandService);
             serviceCollection.AddSingleton(typeof(StorageFactory), storageFactory);
 
-            var handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
+            handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
+        }
+
+        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> oldMessage, Discord.WebSocket.ISocketMessageChannel messageChannel, Discord.WebSocket.SocketReaction reaction)
+        {
+            var guild = ((IGuildChannel)reaction.Channel).Guild;
+            var storage = storageFactory.GetStorage(guild.Id);
+            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
+            if (reaction.User.Value.IsBot)
+            {
+                return;
+            }
+            if (reaction.MessageId == storage.ReactionMessageId)
+            {
+                await waitingList.RemoveUserAsync((IGuildUser)reaction.User.Value);
+                await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+            }
+        }
+
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> oldMessage, Discord.WebSocket.ISocketMessageChannel messageChannel, Discord.WebSocket.SocketReaction reaction)
+        {
+            var guild = ((IGuildChannel)reaction.Channel).Guild;
+            var storage = storageFactory.GetStorage(guild.Id);
+            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
+            if (reaction.User.Value.IsBot)
+            {
+                return;
+            }
+            if (reaction.MessageId == storage.ReactionMessageId)
+            {
+                if (!(await waitingList.AddUserAsync((IGuildUser)reaction.User.Value)).Success)
+                {
+                    await reaction.Message.Value.RemoveReactionAsync(storage.ReactionEmote, reaction.User.Value);
+                }
+                else
+                {
+                    await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                }
+            }
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            await client.LoginAsync(TokenType.Bot, token);
+            await client.StartAsync();
+            await client.SetActivityAsync(new Game("wl.pdelvo.com", ActivityType.Watching));
 
             await handler.InstallCommandsAsync();
 
@@ -89,11 +136,12 @@ namespace WaitingListBot
             return Task.CompletedTask;
         }
 
-        private Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
+        private async Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
         {
             UpdateGuildInformation(newGuild);
-
-            return Task.CompletedTask;
+            var storage = storageFactory.GetStorage(newGuild.Id);
+            var waitingList = new CommandWaitingList(storage, client.Rest, newGuild.Id);
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, newGuild, storage);
         }
 
         private void UpdateGuildInformation(SocketGuild guild)
@@ -113,12 +161,12 @@ namespace WaitingListBot
             return client.StopAsync();
         }
 
-        private Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
+        private async Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
         {
             // Try to update
             var storageFactory = serviceCollection.BuildServiceProvider().GetService<StorageFactory>();
 
-            var storage = storageFactory.GetStorage(after.Guild.Id);
+            var storage = storageFactory!.GetStorage(after.Guild.Id);
 
             foreach (var user in storage.List)
             {
@@ -128,8 +176,8 @@ namespace WaitingListBot
                     user.IsSub = after.Roles.Any(x => x.Id == storage.SubRoleId);
                 }
             }
-
-            return Task.CompletedTask;
+            var waitingList = new CommandWaitingList(storage, client.Rest, after.Guild.Id);
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, after.Guild, storage);
         }
 
         private Task Log(LogMessage logMessage)

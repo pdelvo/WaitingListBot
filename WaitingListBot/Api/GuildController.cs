@@ -11,7 +11,7 @@ namespace WaitingListBot.Api
     [ApiController]
     public class GuildController : ControllerBase
     {
-        StorageFactory storageFactory;
+        readonly StorageFactory storageFactory;
 
         public GuildController(StorageFactory storageFactory)
         {
@@ -27,7 +27,7 @@ namespace WaitingListBot.Api
 
         [HttpGet]
         [Route("{guildId}/List")]
-        public IEnumerable<UserInListWithCounter> ListPlayers(ulong guildId)
+        public IEnumerable<UserInListWithCounter>? ListPlayers(ulong guildId)
         {
             var storage = storageFactory.GetStorage(guildId);
 

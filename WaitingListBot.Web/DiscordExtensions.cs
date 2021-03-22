@@ -28,7 +28,7 @@ namespace WaitingListBot.Web
 			}
 
 			var payload = JArray.Parse(await response.Content.ReadAsStringAsync());
-			Claim claim = new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/guilds", payload.ToString(), ClaimValueTypes.String);
+			Claim claim = new("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/guilds", payload.ToString(), ClaimValueTypes.String);
 			return claim;
 		}
 	}

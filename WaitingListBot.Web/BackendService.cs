@@ -10,8 +10,8 @@ namespace WaitingListBot.Web
 {
     public class BackendService
     {
-        Uri baseAddress;
-        IHttpClientFactory clientFactory;
+        readonly Uri baseAddress;
+        readonly IHttpClientFactory clientFactory;
 
         public BackendService(Uri baseAddress, IHttpClientFactory clientFactory)
         {

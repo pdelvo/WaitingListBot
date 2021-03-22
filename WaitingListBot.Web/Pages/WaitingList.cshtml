@@ -2,17 +2,14 @@
 @model WaitingListBot.Web.Areas.Identity.Pages.WaitingListModel
 @{
     var tableClass = "";
-    var ulClass = "";
     if (Model.Minimal)
     {
         Layout = "/Pages/Shared/_Minimal.cshtml";
-        ulClass = "list-inline";
         tableClass = "table-dark";
     }
     else
     {
         tableClass = "";
-        ulClass = "list-group";
     }
     ViewData["Title"] = "Waiting List";
 }

@@ -10,8 +10,8 @@ namespace WaitingListBot.Web.Areas.Identity.Pages
 {
     public class WaitingListModel : PageModel
     {
-        HealthCheckService healthCheckService;
-        BackendService backendService;
+        readonly HealthCheckService healthCheckService;
+        readonly BackendService backendService;
 
         public List<UserInListWithCounter> Users;
 

@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using Discord;
+
+using Newtonsoft.Json;
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +27,7 @@ namespace WaitingListBot
             PlayCounter = new List<PlayCounter>();
             CommandPrefix = "wl.";
             DMMessageFormat = "You have been invited to play!\n Name: {0}\nPassword: {1}";
+            Information = new GuildInformation();
         }
 
         public void Save()
@@ -38,6 +41,12 @@ namespace WaitingListBot
             try
             {
                 var storage = JsonConvert.DeserializeObject<Storage>(File.ReadAllText(Path.Combine(GuildDirectory, guildId + ".json")));
+
+                if (storage == null)
+                {
+                    return new Storage { guildId = guildId };
+                }
+
                 storage.guildId = guildId;
                 return storage;
             }
@@ -65,6 +74,14 @@ namespace WaitingListBot
 
         [JsonIgnore]
         public bool IsInitialized { get; set; }
+
+        public bool IsReactionMode { get; set; }
+
+        public ulong BotMessageId { get; set; }
+
+        public ulong ReactionMessageId { get; set; }
+
+        public IEmote ReactionEmote { get; } = new Emoji("✅");
 
 
         public List<UserInListWithCounter> GetSortedList()
@@ -105,7 +122,7 @@ namespace WaitingListBot
     {
         public ulong Id { get; set; }
 
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         public bool IsSub { get; set; }
 

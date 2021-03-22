@@ -42,7 +42,7 @@ namespace WaitingListBot
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
-            var storageFactory = (StorageFactory)_services.GetService(typeof(StorageFactory));
+            var storageFactory = (StorageFactory)_services.GetService(typeof(StorageFactory))!;
 
             // Don't process the command if it was a system message
             if (messageParam is not SocketUserMessage message) return;
@@ -57,7 +57,7 @@ namespace WaitingListBot
                 return;
             }
 
-            var storage = storageFactory.GetStorage(guild.Id);
+            var storage = storageFactory!.GetStorage(guild.Id);
 
             if (!storage.IsInitialized)
             {

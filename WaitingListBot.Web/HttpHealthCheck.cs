@@ -11,7 +11,7 @@ namespace WaitingListBot.Web
 {
     public class HttpHealthCheck : IHealthCheck
     {
-        string requestUrl;
+        readonly string requestUrl;
 
         public HttpHealthCheck(string requestUrl)
         {
@@ -20,10 +20,10 @@ namespace WaitingListBot.Web
 
         public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            CancellationTokenSource source = new CancellationTokenSource(500);
+            CancellationTokenSource source = new(500);
             try
             {
-                HttpClient client = new HttpClient();
+                HttpClient client = new();
 
                 var result = await client.GetAsync(requestUrl, CancellationTokenSource.CreateLinkedTokenSource(source.Token, cancellationToken).Token);
 
