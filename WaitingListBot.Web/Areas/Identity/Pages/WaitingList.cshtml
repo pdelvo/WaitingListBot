@@ -29,7 +29,7 @@
             },
             methods: {
                async reloadData() {
-                    var res = await fetch('https://localhost:5001/Identity/WaitingList/@(Model.Id)?handler=data', {
+                    var res = await fetch('/Identity/WaitingList/@(Model.Id)?handler=data', {
                         method: 'get',
                         headers: {
                             'content-type': 'application/json'
