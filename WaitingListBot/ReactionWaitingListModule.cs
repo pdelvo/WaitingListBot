@@ -57,6 +57,8 @@ namespace WaitingListBot
             message = await waitingListChannel.SendMessageAsync("Join the waiting list now!");
 
             storage.ReactionMessageId = message.Id;
+            storage.IsEnabled = true;
+            storage.Save();
             await message.AddReactionAsync(storage.ReactionEmote);
 
             await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
@@ -75,6 +77,9 @@ namespace WaitingListBot
                 await Context.Message.ReplyAsync("Waiting list is not running");
                 return;
             }
+
+            storage.IsEnabled = false;
+            storage.Save();
 
             await message.DeleteAsync();
 

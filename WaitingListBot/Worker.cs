@@ -129,11 +129,12 @@ namespace WaitingListBot
                 .Build().Run();
         }
 
-        private Task Client_GuildAvailable(SocketGuild guild)
+        private async Task Client_GuildAvailable(SocketGuild guild)
         {
             UpdateGuildInformation(guild);
-
-            return Task.CompletedTask;
+            var storage = storageFactory.GetStorage(guild.Id);
+            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
         }
 
         private async Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
