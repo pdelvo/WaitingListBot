@@ -63,8 +63,43 @@ namespace WaitingListBot
 
         [JsonIgnore]
         public bool IsInitialized { get; set; }
+
+
+        public List<UserInListWithCounter> GetSortedList()
+        {
+            var newList = new List<UserInList>(List);
+            newList.Sort((a, b) =>
+            {
+                if (GetPlayCounterById(a.Id) < GetPlayCounterById(b.Id))
+                {
+                    return -1;
+                }
+                else if (GetPlayCounterById(a.Id) > GetPlayCounterById(b.Id))
+                {
+                    return 1;
+                }
+
+                if (a.IsSub && !b.IsSub)
+                {
+                    return -1;
+                }
+                else if (!a.IsSub && b.IsSub)
+                {
+                    return 1;
+                }
+                return a.JoinTime.CompareTo(b.JoinTime);
+            });
+
+            return newList.Select((x) => new UserInListWithCounter(x, GetPlayCounterById(x.Id))).ToList();
+        }
+
+        private int GetPlayCounterById(ulong id)
+        {
+            return PlayCounter.SingleOrDefault(x => x.Id == id)?.Counter ?? 0;
+        }
     }
-    public class UserInList
+
+    public record UserInList
     {
         public ulong Id { get; set; }
 
@@ -74,6 +109,21 @@ namespace WaitingListBot
 
         public DateTime JoinTime { get; set; }
     }
+
+    public record UserInListWithCounter : UserInList
+    {
+        public UserInListWithCounter()
+        {
+
+        }
+
+        public UserInListWithCounter(UserInList userInList, int counter) : base(userInList)
+        {
+            this.Counter = counter;
+        }
+        public int Counter { get; set; }
+    }
+
     public class PlayCounter
     {
         public ulong Id { get; set; }

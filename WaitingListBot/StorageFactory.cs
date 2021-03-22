@@ -13,18 +13,21 @@ namespace WaitingListBot
 
         public Storage GetStorage(ulong guildId)
         {
-            var storage = storages.GetValueOrDefault(guildId);
-
-            if (storage != null)
+            lock (this)
             {
+                var storage = storages.GetValueOrDefault(guildId);
+
+                if (storage != null)
+                {
+                    return storage;
+                }
+
+                storage = Storage.LoadForGuild(guildId);
+
+                storages.Add(guildId, storage);
+
                 return storage;
             }
-
-            storage = Storage.LoadForGuild(guildId);
-
-            storages.Add(guildId, storage);
-
-            return storage;
         }
 
         public IEnumerable<ulong> ListIds()

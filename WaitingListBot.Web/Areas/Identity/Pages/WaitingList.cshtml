@@ -1,0 +1,58 @@
+﻿@page "{id}"
+@model WaitingListBot.Web.Areas.Identity.Pages.WaitingListModel
+@{
+    Layout = "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Waiting List Bot</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <script src="https://unpkg.com/vue@next"></script>
+</head>
+<body style="color:white; background-color: black;">
+    <h1 class="">Waiting List</h1>
+    <div class="container">
+            <ul id="userList" class="list-inline">
+                <li v-for="(user, index) in users" class="list-inline-item">
+                    <span href="#">1. {{user.name}} (<span v-if="user.isSub">Sub </span>Played {{user.counter}} times already)</span>
+                </li>
+            </ul>
+    <script type="text/javascript">
+        const app = Vue.createApp({
+            data() {
+                return {
+                    users: []
+                }
+            },
+            methods: {
+               async reloadData() {
+                    var res = await fetch('https://localhost:5001/Identity/WaitingList/@(Model.Id)?handler=data', {
+                        method: 'get',
+                        headers: {
+                            'content-type': 'application/json'
+                        }
+                    })
+                    // a non-200 response code
+                    if (!res.ok) {
+                        // create error instance with HTTP status text
+                        const error = new Error(res.statusText);
+                        error.json = res.json;
+                        throw error;
+                    }
+                    this.users = await res.json();
+                },
+                increment(index) {
+                    return index + 1;
+                }
+            }
+        });
+        const vm = app.mount('#userList');
+        vm.reloadData();
+        window.setInterval(vm.reloadData, 1000);
+    </script>
+    </div>
+</body>
+</html>

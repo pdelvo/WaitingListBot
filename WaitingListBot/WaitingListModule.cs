@@ -151,7 +151,7 @@ namespace WaitingListBot
         [ModPermission]
         public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
-            var list = GetSortedList();
+            var list = _storage.GetSortedList();
 
             if (list.Count < numberOfPlayers)
             {
@@ -181,7 +181,7 @@ namespace WaitingListBot
             for (int i = 0; i < numberOfPlayers; i++)
             {
                 var player = list[i];
-                _storage.List.Remove(player);
+                _storage.List.Remove(_storage.List.Single(x => x.Id == player.Id));
                 IncreasePlayCounter(player.Id);
                 _storage.Save();
 
@@ -280,14 +280,14 @@ namespace WaitingListBot
                 Title = $"Waiting list"
             };
 
-            var sortedList = GetSortedList();
+            var sortedList = _storage.GetSortedList();
             var description = "";
             int counter = 0;
 
             foreach (var player in sortedList)
             {
                 IGuildUser guildUser = Context.Guild.GetUser(player.Id);
-                description += $"**{++counter}.** {guildUser?.Mention} ({(player.IsSub ? "Sub, " : "")}Played {GetPlayCounterById(player.Id)} times already)\r\n";
+                description += $"**{++counter}.** {guildUser?.Mention} ({(player.IsSub ? "Sub, " : "")}Played {player.Counter} times already)\r\n";
             }
             embedBuilder.Description = description;
 
@@ -346,40 +346,6 @@ namespace WaitingListBot
             }
 
             await Context.Message.ReplyAsync("Here's a list of commands and their description: ", false, embedBuilder.Build());
-        }
-
-        private List<UserInList> GetSortedList()
-        {
-            var newList = new List<UserInList>(_storage.List);
-            newList.Sort((a, b) =>
-            {
-                if (GetPlayCounterById(a.Id) < GetPlayCounterById(b.Id))
-                {
-                    return -1;
-                }
-                else if (GetPlayCounterById(a.Id) > GetPlayCounterById(b.Id))
-                {
-                    return 1;
-                }
-
-                if (a.IsSub && !b.IsSub)
-                {
-                    return -1;
-                }
-                else if (!a.IsSub && b.IsSub)
-                {
-                    return 1;
-                }
-
-                return a.JoinTime.CompareTo(b.JoinTime);
-            });
-
-            return newList;
-        }
-
-        private int GetPlayCounterById(ulong id)
-        {
-            return _storage.PlayCounter.SingleOrDefault(x => x.Id == id)?.Counter ?? 0;
         }
     }
 }

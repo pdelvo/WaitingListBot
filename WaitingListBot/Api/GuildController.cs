@@ -27,11 +27,11 @@ namespace WaitingListBot.Api
 
         [HttpGet]
         [Route("{guildId}/List")]
-        public IEnumerable<UserInList> ListPlayers(ulong guildId)
+        public IEnumerable<UserInListWithCounter> ListPlayers(ulong guildId)
         {
             var storage = storageFactory.GetStorage(guildId);
 
-            return storage.List;
+            return storage?.GetSortedList();
         }
     }
 }
