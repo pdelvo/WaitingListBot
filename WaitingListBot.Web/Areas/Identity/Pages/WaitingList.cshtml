@@ -11,16 +11,24 @@
     <title>@ViewData["Title"] - Waiting List Bot</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <script src="https://unpkg.com/vue@next"></script>
+    <style>
+        .sub{
+            color: red;
+        }
+        body {
+            background-color: black;
+        }
+    </style>
 </head>
-<body style="color:white; background-color: black;">
-    <h1 class="">Waiting List</h1>
-    <div class="container">
+<body>
+    <div style="color: white; height: 100vh;">
+        <div class="container">
             <ul id="userList" class="list-inline">
-                <li v-for="(user, index) in users" class="list-inline-item">
-                    <span href="#">1. {{user.name}} (<span v-if="user.isSub">Sub </span>Played {{user.counter}} times already)</span>
+                <li v-for="(user, index) in users">
+                    <span v-bind:class='{ "sub": user.isSub}'>{{increment(index)}}. {{user.name}} (Played {{user.counter}} times already)</span>
                 </li>
             </ul>
-    <script type="text/javascript">
+            <script type="text/javascript">
         const app = Vue.createApp({
             data() {
                 return {
@@ -52,7 +60,8 @@
         const vm = app.mount('#userList');
         vm.reloadData();
         window.setInterval(vm.reloadData, 1000);
-    </script>
+            </script>
+        </div>
     </div>
 </body>
 </html>
