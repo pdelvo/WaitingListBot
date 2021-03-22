@@ -211,12 +211,25 @@ namespace WaitingListBot
         [Summary("Enters the waiting list.")]
         public Task JoinAsync() => PlayAsync();
 
+        [Command("join")]
+        [Summary("Enters the waiting list.")]
+        [ModPermission]
+        public Task JoinAsync(IGuildUser user) => PlayAsync(user);
 
         [Command("play")]
         [Summary("Enters the waiting list.")]
-        public async Task PlayAsync()
+        public Task PlayAsync()
         {
-            if (Context.User is not IGuildUser guildUser)
+            return PlayAsync(Context.User as IGuildUser);
+        }
+
+
+        [Command("play")]
+        [Summary("Enters the waiting list.")]
+        [ModPermission]
+        public async Task PlayAsync(IGuildUser guildUser)
+        {
+            if (guildUser == null)
             {
                 return;
             }
@@ -227,18 +240,17 @@ namespace WaitingListBot
                 return;
             }
 
-            if (_storage.List.Any(x => x.Id == Context.User.Id))
+            if (_storage.List.Any(x => x.Id == guildUser.Id))
             {
                 await Context.Message.ReplyAsync("You are already on the waiting list!");
             }
             else
             {
                 // Add user the the waiting list
-                SocketUser author = Context.User;
                 UserInList userInList = new UserInList
                 {
-                    Id = author.Id,
-                    Name = guildUser.Nickname ?? author.Username,
+                    Id = guildUser.Id,
+                    Name = guildUser.Nickname ?? guildUser.Username,
                     JoinTime = DateTime.Now,
                     IsSub = guildUser.RoleIds.Contains(_storage.SubRoleId)
                 };
@@ -247,16 +259,27 @@ namespace WaitingListBot
                 _storage.List.Add(userInList);
                 _storage.Save();
 
-                await Context.Message.ReplyAsync($"You joined the waiting list!");
-                //TODO: Maybe give the user the spot in the list
+                await Context.Message.ReplyAsync($"Waiting list joined!");
             }
         }
 
         [Command("leave")]
         [Summary("Leaves the waiting list.")]
-        public async Task LeaveAsync()
+        public Task LeaveAsync()
         {
-            var entry = _storage.List.SingleOrDefault(x => x.Id == Context.User.Id);
+            return LeaveAsync(Context.User as IGuildUser);
+        }
+
+        [Command("leave")]
+        [Summary("Leaves the waiting list.")]
+        public async Task LeaveAsync(IGuildUser guildUser)
+        {
+            if (guildUser == null)
+            {
+                return;
+            }
+
+            var entry = _storage.List.SingleOrDefault(x => x.Id == guildUser.Id);
             if (entry == null)
             {
                 await Context.Message.ReplyAsync($"You are not on the waiting list!");
@@ -310,7 +333,7 @@ namespace WaitingListBot
 
             foreach (CommandInfo command in commands)
             {
-                if (command.Preconditions.Any (x => x is RequireUserPermissionAttribute))
+                if (command.Preconditions.Any (x => x is ModPermissionAttribute))
                 {
                     continue;
                 }
