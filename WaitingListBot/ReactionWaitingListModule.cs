@@ -120,9 +120,10 @@ namespace WaitingListBot
 
         private static async Task<IUserMessage?> GetMessageAsync(IGuild guild, Storage storage)
         {
+            if (storage.ReactionMessageId == 0) return null;
+
             var waitingListChannel = await guild.GetTextChannelAsync(storage.WaitingListChannelId);
             if (waitingListChannel == null) return null;
-
             return await waitingListChannel.GetMessageAsync(storage.ReactionMessageId) as IUserMessage;
         }
 
