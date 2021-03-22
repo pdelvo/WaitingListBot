@@ -1,7 +1,7 @@
 ﻿@page
 @model WaitingListBot.Web.Areas.Identity.Pages.AccountModel
 @{
-
+    ViewData["Title"] = "Servers";
 }
 
 <h1>Hello @User.Identity.Name</h1>
@@ -10,7 +10,7 @@
 <ul class="list-group">
     @foreach (var server in Model.Servers)
     {
-        <li class="list-group-item"><img src="https://cdn.discordapp.com/icons/@(server.Id)/@(server.Icon).png?size=64"/> <a class="text-muted" href="#">@server.Name</a></li>
+        <li class="list-group-item"><img src="https://cdn.discordapp.com/icons/@(server.Id)/@(server.Icon).png?size=64"/> <a class="text-muted" asp-page="WaitingList" asp-route-id="@server.Id">@server.Name</a></li>
     }
 </ul>
 }

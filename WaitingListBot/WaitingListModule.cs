@@ -287,9 +287,15 @@ namespace WaitingListBot
             foreach (var player in sortedList)
             {
                 IGuildUser guildUser = Context.Guild.GetUser(player.Id);
-                description += $"**{++counter}.** {guildUser?.Mention} ({(player.IsSub ? "Sub, " : "")}Played {player.Counter} times already)\r\n";
+                description += $"**{++counter}.** {guildUser?.Mention} {(player.IsSub ? "(Sub) " : "")}";
+                if (player.Counter > 0)
+                {
+                    description += $"(Played { player.Counter} time{ (player.Counter > 1 ? "s" : "")})";
+                }
+                description += "\r\n";
             }
             embedBuilder.Description = description;
+            embedBuilder.AddField("\u200B", "[View the list in real time](https://wl.pdelvo.com/Identity/WaitingList/" + Context.Guild.Id + ")");
 
             Embed embed = embedBuilder.Build();
             await Context.Message.ReplyAsync($"Here are the next players in line:", embed: embed, allowedMentions: AllowedMentions.None);

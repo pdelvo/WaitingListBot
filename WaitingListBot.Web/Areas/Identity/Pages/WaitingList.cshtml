@@ -1,34 +1,23 @@
 ﻿@page "{id}"
 @model WaitingListBot.Web.Areas.Identity.Pages.WaitingListModel
 @{
-    Layout = "";
+    if (Model.Minimal)
+    {
+        Layout = "/Pages/Shared/_Minimal.cshtml";
+    }
+    ViewData["Title"] = "Waiting List";
 }
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Waiting List Bot</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <script src="https://unpkg.com/vue@next"></script>
-    <style>
-        .sub{
-            color: red;
-        }
-        body {
-            background-color: black;
-        }
-    </style>
-</head>
-<body>
-    <div style="color: white; height: 100vh;">
-        <div class="container">
-            <ul id="userList" class="list-inline">
-                <li v-for="(user, index) in users">
-                    <span v-bind:class='{ "sub": user.isSub}'>{{increment(index)}}. {{user.name}} (Played {{user.counter}} times already)</span>
-                </li>
-            </ul>
-            <script type="text/javascript">
+@if (!Model.Minimal)
+{
+    <h1 class="my-0">Waiting List</h1>
+}
+
+<ul id="userList" class="list-inline">
+    <li v-for="(user, index) in users">
+        <span class="lead">{{increment(index)}}. {{user.name}} <span class="sub" v-if="user.isSub">(Sub)</span> <span v-if="user.counter > 0">(Played {{user.counter}} time<span v-if="user.counter > 1">s</span>)</span></span>
+    </li>
+</ul>
+<script type="text/javascript">
         const app = Vue.createApp({
             data() {
                 return {
@@ -59,9 +48,5 @@
         });
         const vm = app.mount('#userList');
         vm.reloadData();
-        window.setInterval(vm.reloadData, 1000);
-            </script>
-        </div>
-    </div>
-</body>
-</html>
+        window.setInterval(vm.reloadData, 5000);
+</script>

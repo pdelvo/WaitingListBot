@@ -15,6 +15,9 @@ namespace WaitingListBot.Web.Areas.Identity.Pages
 
         public List<UserInListWithCounter> Users;
 
+        [BindProperty(SupportsGet = true)]
+        public bool Minimal { get; set; }
+
         public WaitingListModel(HealthCheckService healthCheckService, BackendService backendService)
         {
             this.healthCheckService = healthCheckService;
