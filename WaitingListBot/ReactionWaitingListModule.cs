@@ -103,8 +103,7 @@ namespace WaitingListBot
 
             foreach (var player in sortedList)
             {
-                IGuildUser guildUser = await guild.GetUserAsync(player.Id);
-                description += $"**{++counter}.** {guildUser?.Mention} {(player.IsSub ? "(Sub) " : "")}";
+                description += $"**{++counter}.** {GetMentionWithId(player.Id)} {(player.IsSub ? "(Sub) " : "")}";
                 if (player.Counter > 0)
                 {
                     description += $"(Played { player.Counter} time{ (player.Counter > 1 ? "s" : "")})";
@@ -121,6 +120,11 @@ namespace WaitingListBot
                 p.Content = $"Join the waiting list now!:";
                 p.Embed = embed;
             });
+        }
+
+        private static string GetMentionWithId(ulong id)
+        {
+            return "<@" + id + ">";
         }
 
         private static async Task<IUserMessage?> GetMessageAsync(IGuild guild, Storage storage)
@@ -151,6 +155,59 @@ namespace WaitingListBot
                 await message.RemoveAllReactionsForEmoteAsync(storage.ReactionEmote);
                 await message.AddReactionAsync(storage.ReactionEmote);
             }
+        }
+
+        public static async Task SetWaitingListMembers(IWaitingList waitingList, IGuild guild, Storage storage, IGuildUser[]? users = null)
+        {
+            if (users == null)
+            {
+                var message = await GetMessageAsync(guild, storage);
+
+                if (message == null)
+                {
+                    return;
+                }
+
+                var reactionUsers = message.GetReactionUsersAsync(storage.ReactionEmote, 1000);
+
+                var allUsers = await guild.GetUsersAsync();
+
+                List<IGuildUser> reactionGuildUsers = new List<IGuildUser>();
+
+                await foreach (var userList in reactionUsers)
+                {
+                    foreach (var user in userList)
+                    {
+                        if (!user.IsBot)
+                        {
+                            reactionGuildUsers.Add(allUsers.First(x => x.Id == user.Id));
+                        }
+                    }
+                }
+
+                users = reactionGuildUsers.ToArray();
+            }
+
+            List<UserInList> toRemove = new List<UserInList>();
+
+            foreach (var user in await waitingList.GetPlayerListAsync())
+            {
+                if (!users.Any(x => x.Id == user.Id))
+                {
+                    toRemove.Add(user);
+                }
+            }
+
+            foreach (var user in users)
+            {
+                await waitingList.AddUserAsync(user);
+            }
+            foreach (var user in toRemove)
+            {
+                await waitingList.RemoveUserAsync(user.Id);
+            }
+
+            await UpdateReactionMessageAsync(waitingList, guild, storage);
         }
     }
 }

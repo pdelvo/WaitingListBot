@@ -111,9 +111,9 @@ namespace WaitingListBot.Model
             return Task.FromResult(storage.GetSortedList().ToArray());
         }
 
-        public Task<CommandResult> RemoveUserAsync(IGuildUser guildUser)
+        public Task<CommandResult> RemoveUserAsync(ulong guildUserId)
         {
-            var entry = storage.List.SingleOrDefault(x => x.Id == guildUser.Id);
+            var entry = storage.List.SingleOrDefault(x => x.Id == guildUserId);
             if (entry == null)
             {
                 return Task.FromResult(CommandResult.FromError("You are not on the waiting list!"));

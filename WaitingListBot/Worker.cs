@@ -70,7 +70,7 @@ namespace WaitingListBot
             }
             if (reaction.MessageId == storage.ReactionMessageId)
             {
-                await waitingList.RemoveUserAsync((IGuildUser)reaction.User.Value);
+                await waitingList.RemoveUserAsync(reaction.UserId);
                 await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
             }
         }
@@ -134,7 +134,8 @@ namespace WaitingListBot
             UpdateGuildInformation(guild);
             var storage = storageFactory.GetStorage(guild.Id);
             var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
-            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+
+            await ReactionWaitingListModule.SetWaitingListMembers(waitingList, guild, storage);
         }
 
         private async Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
@@ -142,7 +143,8 @@ namespace WaitingListBot
             UpdateGuildInformation(newGuild);
             var storage = storageFactory.GetStorage(newGuild.Id);
             var waitingList = new CommandWaitingList(storage, client.Rest, newGuild.Id);
-            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, newGuild, storage);
+
+            await ReactionWaitingListModule.SetWaitingListMembers(waitingList, newGuild, storage);
         }
 
         private void UpdateGuildInformation(SocketGuild guild)

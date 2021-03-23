@@ -8,7 +8,7 @@ namespace WaitingListBot.Model
     public interface IWaitingList
     {
         Task<CommandResult> AddUserAsync(IGuildUser guildUser);
-        Task<CommandResult> RemoveUserAsync(IGuildUser guildUser);
+        Task<CommandResult> RemoveUserAsync(ulong guildUserId);
         Task SetUsersAsync (IGuildUser[] guildUsers);
 
         Task<(CommandResult commandResult, UserInListWithCounter[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true);
