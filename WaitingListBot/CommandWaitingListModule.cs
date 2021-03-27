@@ -190,7 +190,7 @@ namespace WaitingListBot
                 playerString += restGuildUser.Mention + " ";
                 await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, player);
 
-                if (playerResult.Success)
+                if (!playerResult.Success)
                 {
                     await Context.Message.ReplyAsync(playerResult.Message, allowedMentions: AllowedMentions.None);
                 }
