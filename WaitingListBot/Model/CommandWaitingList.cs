@@ -51,7 +51,7 @@ namespace WaitingListBot.Model
             }
         }
 
-        public async Task<(CommandResult commandResult, UserInListWithCounter[]? players)> GetNextPlayersAsync(object[] arguments,  int numberOfPlayers, bool removeFromList = true)
+        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments,  int numberOfPlayers, bool removeFromList = true)
         {
             var list = storage.GetSortedList();
 
@@ -75,7 +75,7 @@ namespace WaitingListBot.Model
                 }
             }
 
-            List<UserInListWithCounter> invitedPlayers = new();
+            List<(CommandResult, UserInListWithCounter)> invitedPlayers = new();
 
             for (int i = 0; i < numberOfPlayers; i++)
             {
@@ -89,9 +89,9 @@ namespace WaitingListBot.Model
                 {
                     var message = string.Format(storage.DMMessageFormat, arguments);
 
-                    invitedPlayers.Add(player);
-
                     await restGuildUser.SendMessageAsync(message);
+
+                    invitedPlayers.Add((CommandResult.FromSuccess("Player invited"), player));
                 }
                 catch (FormatException)
                 {
@@ -99,11 +99,11 @@ namespace WaitingListBot.Model
                 }
                 catch (Exception ex)
                 {
-                    return (CommandResult.FromError($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}"), null);
+                    invitedPlayers.Add((CommandResult.FromError($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}"), player));
                 }
             }
 
-            return (CommandResult.FromSuccess("All players have been invited."), invitedPlayers.ToArray());
+            return (CommandResult.FromSuccess("Players have been invited."), invitedPlayers.ToArray());
         }
 
         public Task<UserInListWithCounter[]> GetPlayerListAsync()

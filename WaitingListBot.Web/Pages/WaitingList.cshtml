@@ -2,10 +2,12 @@
 @model WaitingListBot.Web.Areas.Identity.Pages.WaitingListModel
 @{
     var tableClass = "";
+    var playerNameClass = "";
     if (Model.Minimal)
     {
         Layout = "/Pages/Shared/_Minimal.cshtml";
         tableClass = "table-dark";
+        playerNameClass = "badge badge-secondary";
     }
     else
     {
@@ -29,7 +31,7 @@
             <th scope="row">
                 {{increment(index)}}.
             </th>
-            <td>{{user.name}} <span class="badge badge-primary" v-if="user.isSub">Sub</span> <span v-if="user.counter > 0" class="badge badge-warning">Played {{user.counter}} time<span v-if="user.counter > 1">s</span></span></td>
+            <td><span class="@playerNameClass">{{user.name}}</span> <span class="badge badge-primary" v-if="user.isSub">Sub</span> <span v-if="user.counter > 0" class="badge badge-warning">Played {{user.counter}} time<span v-if="user.counter > 1">s</span></span></td>
         </tr>
     </tbody>
 </table>

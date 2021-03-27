@@ -127,6 +127,11 @@ namespace WaitingListBot
             return "<@" + id + ">";
         }
 
+        public static async Task<bool> IsReactionBasedWaitingListActiveAsync(IGuild guild, Storage storage)
+        {
+            return (await GetMessageAsync(guild, storage)) != null;
+        }
+
         private static async Task<IUserMessage?> GetMessageAsync(IGuild guild, Storage storage)
         {
             if (storage.ReactionMessageId == 0) return null;
@@ -136,7 +141,7 @@ namespace WaitingListBot
             return await waitingListChannel.GetMessageAsync(storage.ReactionMessageId) as IUserMessage;
         }
 
-        public static async Task RemoveReactionForPlayerAsync(SocketGuild guild, Storage storage, UserInListWithCounter player)
+        public static async Task RemoveReactionForPlayerAsync(SocketGuild guild, Storage storage, UserInList player)
         {
             var message = await GetMessageAsync(guild, storage);
 

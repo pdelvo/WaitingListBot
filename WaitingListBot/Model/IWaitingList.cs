@@ -11,7 +11,7 @@ namespace WaitingListBot.Model
         Task<CommandResult> RemoveUserAsync(ulong guildUserId);
         Task SetUsersAsync (IGuildUser[] guildUsers);
 
-        Task<(CommandResult commandResult, UserInListWithCounter[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true);
+        Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true);
 
         Task<UserInListWithCounter[]> GetPlayerListAsync();
     }

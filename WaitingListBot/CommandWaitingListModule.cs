@@ -39,6 +39,7 @@ namespace WaitingListBot
         [Command("setsubrole")]
         [Summary("Sets the Id for the sub role.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(false)]
         public async Task SetAsSubRole([Summary("The role of subscribers.")] IRole role)
         {
             storage.SubRoleId = role.Id;
@@ -49,6 +50,8 @@ namespace WaitingListBot
         [Command("enable")]
         [Summary("Enables the waiting list.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(false)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public async Task Enable()
         {
             storage.IsEnabled = true;
@@ -65,6 +68,8 @@ namespace WaitingListBot
         [Command("disable")]
         [Summary("Disables the waiting list.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(true)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public async Task Disable()
         {
             storage.IsEnabled = false;
@@ -80,6 +85,7 @@ namespace WaitingListBot
         [Command("waitingchannel")]
         [Summary("Selects the channel as the waiting list channel.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(false)]
         public async Task MarkAsWaitingChannelAsync(IGuildChannel channel)
         {
             storage.WaitingListChannelId = channel.Id;
@@ -145,6 +151,7 @@ namespace WaitingListBot
         [Command("nuke")]
         [Summary("Clears the waiting list.")]
         [ModPermission]
+        [NotWhenReactionBasedWaitingListEnabled]
         public async Task ClearWaitingListAsync()
         {
             storage.PlayCounter.Clear();
@@ -161,6 +168,7 @@ namespace WaitingListBot
         [Command("next")]
         [Summary("Notifies the next players.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(true)]
         public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
 
@@ -176,11 +184,16 @@ namespace WaitingListBot
 
             for (int i = 0; i < numberOfPlayers; i++)
             {
-                var player = nextPlayers[i];
+                var (playerResult, player) = nextPlayers[i];
 
                 var restGuildUser = await Context.Client.Rest.GetGuildUserAsync(Context.Guild.Id, player.Id);
                 playerString += restGuildUser.Mention + " ";
                 await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, player);
+
+                if (playerResult.Success)
+                {
+                    await Context.Message.ReplyAsync(playerResult.Message, allowedMentions: AllowedMentions.None);
+                }
             }
 
             await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
@@ -190,15 +203,21 @@ namespace WaitingListBot
 
         [Command("join")]
         [Summary("Enters the waiting list.")]
+        [CheckIfWaitingListIsActive(true)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public Task JoinAsync() => PlayAsync();
 
         [Command("join")]
         [Summary("Enters the waiting list.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(true)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public Task JoinAsync(IGuildUser user) => PlayAsync(user);
 
         [Command("play")]
         [Summary("Enters the waiting list.")]
+        [CheckIfWaitingListIsActive(true)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public Task PlayAsync()
         {
             return PlayAsync(Context.User as IGuildUser);
@@ -208,6 +227,8 @@ namespace WaitingListBot
         [Command("play")]
         [Summary("Enters the waiting list.")]
         [ModPermission]
+        [CheckIfWaitingListIsActive(true)]
+        [NotWhenReactionBasedWaitingListEnabled]
         public async Task PlayAsync(IGuildUser? guildUser)
         {
             if (guildUser == null)
@@ -270,11 +291,14 @@ namespace WaitingListBot
                 storage.Save();
 
                 await Context.Message.ReplyAsync($"You left the waiting list!");
+                await ReactionWaitingListModule.RemoveReactionForPlayerAsync((SocketGuild)guildUser.Guild, storage, entry);
             }
+
         }
 
         [Command("list")]
         [Summary("Shows the waiting list.")]
+        [CheckIfWaitingListIsActive(true)]
         public async Task ListAsync()
         {
             var embedBuilder = new EmbedBuilder
