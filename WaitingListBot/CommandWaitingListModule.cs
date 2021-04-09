@@ -151,7 +151,6 @@ namespace WaitingListBot
         [Command("nuke")]
         [Summary("Clears the waiting list.")]
         [ModPermission]
-        [NotWhenReactionBasedWaitingListEnabled]
         public async Task ClearWaitingListAsync()
         {
             storage.PlayCounter.Clear();
@@ -163,6 +162,18 @@ namespace WaitingListBot
             await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
 
             await Context.Channel.SendFileAsync("nuke.jpg", "List has been cleared");
+        }
+
+        [Command("clearcounters")]
+        [Summary("Clears the play counters. Does not clear players in queue.")]
+        [ModPermission]
+        public async Task ClearCountersAsync()
+        {
+            storage.PlayCounter.Clear();
+
+            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+
+            await Context.Message.ReplyAsync("Counters have been cleared");
         }
 
         [Command("next")]
