@@ -70,8 +70,11 @@ namespace WaitingListBot
             }
             if (reaction.MessageId == storage.ReactionMessageId)
             {
-                await waitingList.RemoveUserAsync(reaction.UserId);
-                await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                if (reaction.Emote.Name == storage.ReactionEmote.Name)
+                {
+                    await waitingList.RemoveUserAsync(reaction.UserId);
+                    await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                }
             }
         }
 
@@ -86,13 +89,16 @@ namespace WaitingListBot
             }
             if (reaction.MessageId == storage.ReactionMessageId)
             {
-                if (!(await waitingList.AddUserAsync((IGuildUser)reaction.User.Value)).Success)
+                if (reaction.Emote.Name == storage.ReactionEmote.Name)
                 {
-                    await reaction.Message.Value.RemoveReactionAsync(storage.ReactionEmote, reaction.User.Value);
-                }
-                else
-                {
-                    await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                    if (!(await waitingList.AddUserAsync((IGuildUser)reaction.User.Value)).Success)
+                    {
+                        await reaction.Message.Value.RemoveReactionAsync(storage.ReactionEmote, reaction.User.Value);
+                    }
+                    else
+                    {
+                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                    }
                 }
             }
         }
