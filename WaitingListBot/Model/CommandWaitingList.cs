@@ -59,6 +59,17 @@ namespace WaitingListBot.Model
             {
                 return (CommandResult.FromError($"Did not send invites. There are only {list.Count} players in the list."), null);
             }
+
+            string message;
+
+            try
+            {
+                message = string.Format(storage.DMMessageFormat, arguments);
+            }
+            catch (Exception)
+            {
+                return (CommandResult.FromError("The arguments had the wrong format"), null);
+            }
             // Send invites
 
             void IncreasePlayCounter(ulong id)
@@ -87,15 +98,10 @@ namespace WaitingListBot.Model
                 var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.Id);
                 try
                 {
-                    var message = string.Format(storage.DMMessageFormat, arguments);
 
                     await restGuildUser.SendMessageAsync(message);
 
                     invitedPlayers.Add((CommandResult.FromSuccess("Player invited"), player));
-                }
-                catch (FormatException)
-                {
-                    return (CommandResult.FromError("The arguments had the wrong format"), null);
                 }
                 catch (Exception ex)
                 {
