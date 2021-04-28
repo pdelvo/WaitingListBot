@@ -179,7 +179,6 @@ namespace WaitingListBot
         [Command("next")]
         [Summary("Notifies the next players.")]
         [ModPermission]
-        [CheckIfWaitingListIsActive(true)]
         public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
         {
 
@@ -309,13 +308,12 @@ namespace WaitingListBot
 
         [Command("list")]
         [Summary("Shows the waiting list.")]
-        [CheckIfWaitingListIsActive(true)]
         public async Task ListAsync()
         {
             var embedBuilder = new EmbedBuilder
             {
                 Color = Color.Green,
-                Title = $"Waiting list"
+                Title = $"Waiting list{(storage.IsEnabled ? "" : " (NOT ACTIVE)")}"
             };
 
             var sortedList = storage.GetSortedList();
