@@ -196,7 +196,7 @@ namespace WaitingListBot
             for (int i = 0; i < numberOfPlayers; i++)
             {
                 var (playerResult, player) = nextPlayers[i];
-                playerString += MentionUtils.MentionUser(player.Id) + " ";
+                playerString += player.Name + " (" + MentionUtils.MentionUser(player.Id) + ") ";
                 players.Add(player);
 
                 if (!playerResult.Success)
@@ -235,7 +235,7 @@ namespace WaitingListBot
             for (int i = 0; i < nextPlayers.Length; i++)
             {
                 var (playerResult, player) = nextPlayers[i];
-                playerString += MentionUtils.MentionUser(player.Id) + " ";
+                playerString += player.Name + " (" + MentionUtils.MentionUser(player.Id) + ") ";
                 players.Add(player);
 
                 if (!playerResult.Success)
@@ -359,7 +359,7 @@ namespace WaitingListBot
             foreach (var player in sortedList)
             {
                 IGuildUser guildUser = Context.Guild.GetUser(player.Id);
-                description += $"**{++counter}.** {guildUser?.Mention} {(player.IsSub ? "(Sub) " : "")}";
+                description += $"**{++counter}.** {player.Name} ({guildUser?.Mention}) {(player.IsSub ? "(Sub) " : "")}";
                 if (player.Counter > 0)
                 {
                     description += $"(Played { player.Counter} time{ (player.Counter > 1 ? "s" : "")})";

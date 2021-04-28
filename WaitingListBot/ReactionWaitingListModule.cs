@@ -103,7 +103,7 @@ namespace WaitingListBot
 
             foreach (var player in sortedList)
             {
-                description += $"**{++counter}.** {GetMentionWithId(player.Id)} {(player.IsSub ? "(Sub) " : "")}";
+                description += $"**{++counter}.** {player.Name} ({GetMentionWithId(player.Id)}) {(player.IsSub ? "(Sub) " : "")}";
                 if (player.Counter > 0)
                 {
                     description += $"(Played { player.Counter} time{ (player.Counter > 1 ? "s" : "")})";
