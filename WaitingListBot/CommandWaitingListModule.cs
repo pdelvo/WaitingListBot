@@ -196,9 +196,7 @@ namespace WaitingListBot
             for (int i = 0; i < numberOfPlayers; i++)
             {
                 var (playerResult, player) = nextPlayers[i];
-
-                var restGuildUser = await Context.Client.Rest.GetGuildUserAsync(Context.Guild.Id, player.Id);
-                playerString += restGuildUser.Mention + " ";
+                playerString += MentionUtils.MentionUser(player.Id) + " ";
                 players.Add(player);
 
                 if (!playerResult.Success)
