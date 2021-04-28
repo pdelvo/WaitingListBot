@@ -51,7 +51,7 @@ namespace WaitingListBot.Model
             }
         }
 
-        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments,  int numberOfPlayers, bool removeFromList = true)
+        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true)
         {
             var list = storage.GetSortedList();
 
@@ -83,6 +83,45 @@ namespace WaitingListBot.Model
                 storage.List.Remove(storage.List.Single(x => x.Id == player.Id));
                 IncreasePlayCounter(player.Id);
                 storage.Save();
+
+                var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.Id);
+                try
+                {
+                    var message = string.Format(storage.DMMessageFormat, arguments);
+
+                    await restGuildUser.SendMessageAsync(message);
+
+                    invitedPlayers.Add((CommandResult.FromSuccess("Player invited"), player));
+                }
+                catch (FormatException)
+                {
+                    return (CommandResult.FromError("The arguments had the wrong format"), null);
+                }
+                catch (Exception ex)
+                {
+                    invitedPlayers.Add((CommandResult.FromError($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}"), player));
+                }
+            }
+
+            return (CommandResult.FromSuccess("Players have been invited."), invitedPlayers.ToArray());
+        }
+
+        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> ResendAsync(object[] arguments)
+        {
+            var list = storage.LastInvited;
+
+            if (list == null)
+            {
+                return (CommandResult.FromError("Cant resend. List does not exist."), null);
+            }
+
+            // Send invites
+
+            List<(CommandResult, UserInListWithCounter)> invitedPlayers = new();
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var player = list[i];
 
                 var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.Id);
                 try

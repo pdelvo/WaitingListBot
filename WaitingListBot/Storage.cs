@@ -62,6 +62,8 @@ namespace WaitingListBot
 
         public List<UserInList> List { get; set; }
 
+        public IReadOnlyList<UserInListWithCounter> LastInvited { get; set; }
+
         public List<PlayCounter> PlayCounter { get; set; }
 
         public ulong SubRoleId { get; set; }

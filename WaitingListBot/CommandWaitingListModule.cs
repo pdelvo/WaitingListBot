@@ -179,7 +179,7 @@ namespace WaitingListBot
         [Command("next")]
         [Summary("Notifies the next players.")]
         [ModPermission]
-        public async Task NextAsync([Summary("Number of players")]int numberOfPlayers, [Summary("Arguments")]params string[] arguments)
+        public async Task NextAsync([Summary("Number of players")] int numberOfPlayers, [Summary("Arguments")] params string[] arguments)
         {
 
             var (result, nextPlayers) = await waitingList.GetNextPlayersAsync(arguments, numberOfPlayers, true);
@@ -205,11 +205,46 @@ namespace WaitingListBot
                 }
             }
 
+            storage.LastInvited = players;
+            storage.Save();
+
             await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
 
             await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, players.ToArray());
 
             await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+        }
+
+        [Command("resend")]
+        [Summary("Resends the information to the last batch of players.")]
+        [ModPermission]
+        public async Task ResendAsync([Summary("Arguments")] params string[] arguments)
+        {
+
+            var (result, nextPlayers) = await waitingList.ResendAsync(arguments);
+
+            if (!result.Success || nextPlayers == null)
+            {
+                await Context.Message.ReplyAsync(result.Message);
+                return;
+            }
+
+            string playerString = "";
+            List<UserInListWithCounter> players = new List<UserInListWithCounter>();
+
+            for (int i = 0; i < nextPlayers.Length; i++)
+            {
+                var (playerResult, player) = nextPlayers[i];
+                playerString += MentionUtils.MentionUser(player.Id) + " ";
+                players.Add(player);
+
+                if (!playerResult.Success)
+                {
+                    await Context.Message.ReplyAsync(playerResult.Message, allowedMentions: AllowedMentions.None);
+                }
+            }
+
+            await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
         }
 
         [Command("join")]
