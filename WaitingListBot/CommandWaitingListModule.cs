@@ -191,6 +191,7 @@ namespace WaitingListBot
             }
 
             string playerString = "";
+            List<UserInListWithCounter> players = new List<UserInListWithCounter>();
 
             for (int i = 0; i < numberOfPlayers; i++)
             {
@@ -198,7 +199,7 @@ namespace WaitingListBot
 
                 var restGuildUser = await Context.Client.Rest.GetGuildUserAsync(Context.Guild.Id, player.Id);
                 playerString += restGuildUser.Mention + " ";
-                await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, player);
+                players.Add(player);
 
                 if (!playerResult.Success)
                 {
@@ -207,6 +208,8 @@ namespace WaitingListBot
             }
 
             await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
+
+            await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, players.ToArray());
 
             await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
         }

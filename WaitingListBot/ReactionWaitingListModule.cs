@@ -141,13 +141,16 @@ namespace WaitingListBot
             return await waitingListChannel.GetMessageAsync(storage.ReactionMessageId) as IUserMessage;
         }
 
-        public static async Task RemoveReactionForPlayerAsync(SocketGuild guild, Storage storage, UserInList player)
+        public static async Task RemoveReactionForPlayerAsync(SocketGuild guild, Storage storage, params UserInList[] players)
         {
             var message = await GetMessageAsync(guild, storage);
 
             if (message != null)
             {
-                await message.RemoveReactionAsync(storage.ReactionEmote, guild.GetUser(player.Id));
+                foreach (var player in players)
+                {
+                    await message.RemoveReactionAsync(storage.ReactionEmote, guild.GetUser(player.Id));
+                }
             }
         }
 
