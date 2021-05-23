@@ -222,6 +222,8 @@ namespace WaitingListBot
                 await myDMChannel.SendMessageAsync("Server: " + Context.Guild.Name);
 
                 await myDMChannel.SendMessageAsync(ex.ToString());
+
+                throw;
             }
         }
 
