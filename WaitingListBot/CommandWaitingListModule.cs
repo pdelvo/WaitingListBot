@@ -181,38 +181,48 @@ namespace WaitingListBot
         [ModPermission]
         public async Task NextAsync([Summary("Number of players")] int numberOfPlayers, [Summary("Arguments")] params string[] arguments)
         {
-
-            var (result, nextPlayers) = await waitingList.GetNextPlayersAsync(arguments, numberOfPlayers, true);
-
-            if (!result.Success || nextPlayers == null)
+            try
             {
-                await Context.Message.ReplyAsync(result.Message);
-                return;
-            }
+                var (result, nextPlayers) = await waitingList.GetNextPlayersAsync(arguments, numberOfPlayers, true);
 
-            string playerString = "";
-            List<UserInListWithCounter> players = new List<UserInListWithCounter>();
-
-            for (int i = 0; i < numberOfPlayers; i++)
-            {
-                var (playerResult, player) = nextPlayers[i];
-                playerString += player.Name + " (" + MentionUtils.MentionUser(player.Id) + ") ";
-                players.Add(player);
-
-                if (!playerResult.Success)
+                if (!result.Success || nextPlayers == null)
                 {
-                    await Context.Message.ReplyAsync(playerResult.Message, allowedMentions: AllowedMentions.None);
+                    await Context.Message.ReplyAsync(result.Message);
+                    return;
                 }
+
+                string playerString = "";
+                List<UserInListWithCounter> players = new List<UserInListWithCounter>();
+
+                for (int i = 0; i < numberOfPlayers; i++)
+                {
+                    var (playerResult, player) = nextPlayers[i];
+                    playerString += player.Name + " (" + MentionUtils.MentionUser(player.Id) + ") ";
+                    players.Add(player);
+
+                    if (!playerResult.Success)
+                    {
+                        await Context.Message.ReplyAsync(playerResult.Message, allowedMentions: AllowedMentions.None);
+                    }
+                }
+
+                storage.LastInvited = players;
+                storage.Save();
+
+                await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
+
+                await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, players.ToArray());
+
+                await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+
             }
+            catch(Exception ex)
+            {
+                var myDMChannel = await Context.Client.Rest.GetDMChannelAsync(367018778409566209);
+                await myDMChannel.SendMessageAsync("Server: " + Context.Guild.Name);
 
-            storage.LastInvited = players;
-            storage.Save();
-
-            await Context.Message.ReplyAsync("All players have been invited. Invited players: " + playerString, allowedMentions: AllowedMentions.None);
-
-            await ReactionWaitingListModule.RemoveReactionForPlayerAsync(Context.Guild, storage, players.ToArray());
-
-            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+                await myDMChannel.SendMessageAsync(ex.ToString());
+            }
         }
 
         [Command("resend")]
