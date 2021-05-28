@@ -59,7 +59,7 @@ namespace WaitingListBot
             storage.ReactionMessageId = message.Id;
             storage.IsEnabled = true;
             storage.Save();
-            await message.AddReactionAsync(storage.ReactionEmote);
+            // await message.AddReactionAsync(storage.ReactionEmote);
 
             await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
             await Context.Message.ReplyAsync("Waiting list has been started");
@@ -113,12 +113,19 @@ namespace WaitingListBot
             embedBuilder.Description = description;
             embedBuilder.AddField("\u200B", "[View this list in real time](https://wl.pdelvo.com/WaitingList/" + guild.Id + ")");
 
+            ComponentBuilder componentBuilder = new ComponentBuilder();
+
+            componentBuilder.WithButton("Join", customId: "join");
+            componentBuilder.WithButton("Leave", customId: "leave");
+            // componentBuilder.WithButton("Website", style: ButtonStyle.Link, url: "https://wl.pdelvo.com/WaitingList/" + guild.Id);
+
             Embed embed = embedBuilder.Build();
 
             await message.ModifyAsync(p =>
             {
                 p.Content = $"Join the waiting list now!:";
                 p.Embed = embed;
+                p.Components = componentBuilder.Build();
             });
         }
 

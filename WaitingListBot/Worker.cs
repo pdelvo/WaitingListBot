@@ -31,7 +31,8 @@ namespace WaitingListBot
             var config = new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages | GatewayIntents.GuildMessageReactions,
-                AlwaysDownloadUsers = true
+                AlwaysDownloadUsers = true,
+                AlwaysAcknowledgeInteractions = false
             };
 
             client = new DiscordSocketClient(config);
@@ -40,8 +41,7 @@ namespace WaitingListBot
             client.GuildMemberUpdated += GuildMemberUpdated;
             client.GuildUpdated += Client_GuildUpdated;
             client.GuildAvailable += Client_GuildAvailable;
-            client.ReactionAdded += Client_ReactionAdded;
-            client.ReactionRemoved += Client_ReactionRemoved;
+            client.InteractionCreated += Client_InteractionCreated;
 
 #if DEBUG
             token = File.ReadAllText("token-dev.txt");
@@ -59,46 +59,43 @@ namespace WaitingListBot
             handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
         }
 
-        private async Task Client_ReactionRemoved(Cacheable<IUserMessage, ulong> oldMessage, Discord.WebSocket.ISocketMessageChannel messageChannel, Discord.WebSocket.SocketReaction reaction)
+        private async Task Client_InteractionCreated(SocketInteraction arg)
         {
-            var guild = ((IGuildChannel)reaction.Channel).Guild;
-            var storage = storageFactory.GetStorage(guild.Id);
-            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
-            if (reaction.User.Value.IsBot)
+            if (arg.Type == InteractionType.MessageComponent)
             {
-                return;
-            }
-            if (reaction.MessageId == storage.ReactionMessageId)
-            {
-                if (reaction.Emote.Name == storage.ReactionEmote.Name)
-                {
-                    await waitingList.RemoveUserAsync(reaction.UserId);
-                    await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
-                }
-            }
-        }
+                var parsedArg = (SocketMessageComponent)arg;
 
-        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> oldMessage, Discord.WebSocket.ISocketMessageChannel messageChannel, Discord.WebSocket.SocketReaction reaction)
-        {
-            var guild = ((IGuildChannel)reaction.Channel).Guild;
-            var storage = storageFactory.GetStorage(guild.Id);
-            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
-            if (reaction.User.Value.IsBot)
-            {
-                return;
-            }
-            if (reaction.MessageId == storage.ReactionMessageId)
-            {
-                if (reaction.Emote.Name == storage.ReactionEmote.Name)
+                var customId = parsedArg.Data.CustomId;
+
+                var guild = ((IGuildChannel)parsedArg.Channel).Guild;
+                var storage = storageFactory.GetStorage(guild.Id);
+                var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
+
+                if (arg.User.IsBot)
                 {
-                    if (!(await waitingList.AddUserAsync((IGuildUser)reaction.User.Value)).Success)
+                    return;
+                }
+                if (parsedArg.Message.Id == storage.ReactionMessageId)
+                {
+                    if (customId == "join")
                     {
-                        await reaction.Message.Value.RemoveReactionAsync(storage.ReactionEmote, reaction.User.Value);
+                        if (!(await waitingList.AddUserAsync((IGuildUser)parsedArg.User)).Success)
+                        {
+                            // await arg.RespondAsync("Failed");
+                            Console.WriteLine("Failed to join " + parsedArg.User);
+                        }
+                        else
+                        {
+                            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                        }
                     }
-                    else
+                    else if (customId == "leave")
                     {
+                        await waitingList.RemoveUserAsync(parsedArg.User.Id);
                         await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
                     }
+
+                    await parsedArg.AcknowledgeAsync();
                 }
             }
         }
@@ -141,7 +138,7 @@ namespace WaitingListBot
             var storage = storageFactory.GetStorage(guild.Id);
             var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
 
-            await ReactionWaitingListModule.SetWaitingListMembers(waitingList, guild, storage);
+            // await ReactionWaitingListModule.SetWaitingListMembers(waitingList, guild, storage);
         }
 
         private async Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
@@ -150,7 +147,7 @@ namespace WaitingListBot
             var storage = storageFactory.GetStorage(newGuild.Id);
             var waitingList = new CommandWaitingList(storage, client.Rest, newGuild.Id);
 
-            await ReactionWaitingListModule.SetWaitingListMembers(waitingList, newGuild, storage);
+            // await ReactionWaitingListModule.SetWaitingListMembers(waitingList, newGuild, storage);
         }
 
         private void UpdateGuildInformation(SocketGuild guild)
