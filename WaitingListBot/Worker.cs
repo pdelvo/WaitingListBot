@@ -97,6 +97,29 @@ namespace WaitingListBot
 
                     await parsedArg.AcknowledgeAsync();
                 }
+                else
+                {
+                    if (customId == "unpause")
+                    {
+                        storage.IsPaused = false;
+                        storage.Save();
+
+                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+
+                        await parsedArg.AcknowledgeAsync();
+
+                        await parsedArg.Message.DeleteAsync();
+                    }
+                    else if (customId == "clearcounters")
+                    {
+                        storage.PlayCounter.Clear();
+                        storage.Save();
+
+                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+
+                        await parsedArg.RespondAsync("Counters have been cleared");
+                    }
+                }
             }
         }
 

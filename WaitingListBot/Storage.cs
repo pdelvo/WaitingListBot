@@ -85,6 +85,8 @@ namespace WaitingListBot
 
         public IEmote ReactionEmote { get; } = new Emoji("✅");
 
+        public bool IsPaused { get; set; } = true;
+
 
         public List<UserInListWithCounter> GetSortedList()
         {

@@ -58,11 +58,21 @@ namespace WaitingListBot
 
             storage.ReactionMessageId = message.Id;
             storage.IsEnabled = true;
+            storage.IsPaused = false;
             storage.Save();
             // await message.AddReactionAsync(storage.ReactionEmote);
 
             await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
-            await Context.Message.ReplyAsync("Waiting list has been started");
+            var modMessage = await Context.Message.ReplyAsync("Waiting list has been started");
+
+            ComponentBuilder componentBuilder = new ComponentBuilder();
+            componentBuilder.WithButton("Clear counters", customId: "clearcounters");
+
+            await modMessage.ModifyAsync(p =>
+            {
+                p.Components = componentBuilder.Build();
+            });
+
         }
 
         [Command("stop")]
@@ -79,11 +89,46 @@ namespace WaitingListBot
             }
 
             storage.IsEnabled = false;
+            storage.IsPaused = false;
             storage.Save();
 
             await message.DeleteAsync();
 
             await Context.Message.ReplyAsync("Waiting list has been stopped");
+        }
+
+        [Command("pause")]
+        [Summary("Pauses the joining of the list.")]
+        [ModPermission]
+        public async Task Pause()
+        {
+            storage.IsPaused = true;
+            storage.Save();
+
+            await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+
+            var message = await Context.Message.ReplyAsync("Waiting list has been paused");
+            ComponentBuilder componentBuilder = new ComponentBuilder();
+
+            componentBuilder.WithButton("Unpause", customId: "unpause");
+
+            await message.ModifyAsync(p =>
+            {
+                p.Components = componentBuilder.Build();
+            });
+        }
+
+        [Command("unpause")]
+        [Summary("Pauses the joining of the list.")]
+        [ModPermission]
+        public async Task Unpause()
+        {
+            storage.IsPaused = false;
+            storage.Save();
+
+            await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
+
+            await Context.Message.ReplyAsync("Waiting list has been unpaused");
         }
 
         public static async Task UpdateReactionMessageAsync(IWaitingList waitingList, IGuild guild, Storage storage)
@@ -110,14 +155,18 @@ namespace WaitingListBot
                 }
                 description += "\r\n";
             }
+            string url = "https://wl.pdelvo.com/WaitingList/" + guild.Id;
+
             embedBuilder.Description = description;
-            embedBuilder.AddField("\u200B", "[View this list in real time](https://wl.pdelvo.com/WaitingList/" + guild.Id + ")");
+            embedBuilder.AddField("\u200B", "[View this list in real time](" + url + ")");
 
             ComponentBuilder componentBuilder = new ComponentBuilder();
 
-            componentBuilder.WithButton("Join", customId: "join");
+            componentBuilder.WithButton("Join", customId: "join", disabled: storage.IsPaused);
             componentBuilder.WithButton("Leave", customId: "leave");
-            // componentBuilder.WithButton("Website", style: ButtonStyle.Link, url: "https://wl.pdelvo.com/WaitingList/" + guild.Id);
+
+            // Waiting for an updated Discord.Net package for this to work
+            // componentBuilder.WithButton("Website", style: ButtonStyle.Link, url: url);
 
             Embed embed = embedBuilder.Build();
 
