@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using System;
 using System.IO;
@@ -25,8 +26,9 @@ namespace WaitingListBot
         readonly StorageFactory storageFactory = new();
         readonly string token;
         readonly CommandHandler handler;
+        readonly ILogger logger;
 
-        public Worker()
+        public Worker(ILogger<Worker> logger)
         {
             var config = new DiscordSocketConfig
             {
@@ -57,6 +59,7 @@ namespace WaitingListBot
             serviceCollection.AddSingleton(typeof(StorageFactory), storageFactory);
 
             handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
+            this.logger = logger;
         }
 
         private async Task Client_InteractionCreated(SocketInteraction arg)
@@ -82,7 +85,7 @@ namespace WaitingListBot
                         if (!(await waitingList.AddUserAsync((IGuildUser)parsedArg.User)).Success)
                         {
                             // await arg.RespondAsync("Failed");
-                            Console.WriteLine("Failed to join " + parsedArg.User);
+                            logger.LogError("Failed to join " + parsedArg.User);
                         }
                         else
                         {
@@ -211,7 +214,33 @@ namespace WaitingListBot
 
         private Task Log(LogMessage logMessage)
         {
-            Console.WriteLine(logMessage.ToString());
+            if (logMessage.Exception != null)
+            {
+                logger.LogError(logMessage.Exception, "Exception was thrown in a Discord.Net method: " + logMessage.Message);
+            }
+
+            switch (logMessage.Severity)
+            {
+                case LogSeverity.Critical:
+                    break;
+                case LogSeverity.Error:
+                    logger.LogCritical(logMessage.Message);
+                    break;
+                case LogSeverity.Warning:
+                    logger.LogWarning(logMessage.Message);
+                    break;
+                case LogSeverity.Info:
+                    logger.LogInformation(logMessage.Message);
+                    break;
+                case LogSeverity.Verbose:
+                    break;
+                case LogSeverity.Debug:
+                    logger.LogDebug(logMessage.Message);
+                    break;
+                default:
+                    logger.LogInformation(logMessage.Message);
+                    break;
+            }
             return Task.CompletedTask;
         }
     }
