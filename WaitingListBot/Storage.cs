@@ -28,6 +28,7 @@ namespace WaitingListBot
             CommandPrefix = "wl.";
             DMMessageFormat = "You have been invited to play!\n Name: {0}\nPassword: {1}";
             Information = new GuildInformation();
+            PendingInvites = new();
         }
 
         public void Save()
@@ -64,6 +65,8 @@ namespace WaitingListBot
 
         public IReadOnlyList<UserInListWithCounter> LastInvited { get; set; }
 
+        public List<(Guid id, UserInListWithCounter user, DateTime inviteTime, object[] arguments, bool? accepted)> PendingInvites { get; set; }
+
         public List<PlayCounter> PlayCounter { get; set; }
 
         public ulong SubRoleId { get; set; }
@@ -79,13 +82,11 @@ namespace WaitingListBot
 
         public bool IsReactionMode { get; set; }
 
-        public ulong BotMessageId { get; set; }
-
         public ulong ReactionMessageId { get; set; }
 
         public IEmote ReactionEmote { get; } = new Emoji("✅");
 
-        public bool IsPaused { get; set; } = true;
+        public bool IsPaused { get; set; } = false;
 
 
         public List<UserInListWithCounter> GetSortedList()

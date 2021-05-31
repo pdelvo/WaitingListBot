@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot
 {
     public class NotWhenReactionBasedWaitingListEnabledAttribute : PreconditionAttribute
@@ -16,11 +18,11 @@ namespace WaitingListBot
 
             if (guild != null)
             {
-                var storageProvider = (StorageFactory)services.GetService(typeof(StorageFactory))!;
+                var dataContext = (WaitingListDataContext)services.GetService(typeof(WaitingListDataContext))!;
 
-                var storage = storageProvider.GetStorage(guild.Id);
+                var guildData = dataContext.GetGuild(guild.Id);
 
-                if (await ReactionWaitingListModule.IsReactionBasedWaitingListActiveAsync(guild, storage))
+                if (guildData.IsEnabled == true)
                 {
                     return PreconditionResult.FromError("Cannot run this command while a reaction waiting list is active");
                 }

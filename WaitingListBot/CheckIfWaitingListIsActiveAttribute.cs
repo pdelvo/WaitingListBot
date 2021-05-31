@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot
 {
     public class CheckIfWaitingListIsActiveAttribute : PreconditionAttribute
@@ -22,11 +24,11 @@ namespace WaitingListBot
 
             if (guild != null)
             {
-                var storageProvider = (StorageFactory)services.GetService(typeof(StorageFactory))!;
+                var dataContext = (WaitingListDataContext)services.GetService(typeof(WaitingListDataContext))!;
 
-                var storage = storageProvider.GetStorage(guild.Id);
+                var guildData = dataContext.GetGuild(guild.Id);
 
-                if (allowRunningIfListIsActive == storage.IsEnabled)
+                if (allowRunningIfListIsActive == guildData?.IsEnabled)
                 {
                     return Task.FromResult(PreconditionResult.FromSuccess());
                 }

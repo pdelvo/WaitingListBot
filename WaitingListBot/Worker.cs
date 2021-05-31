@@ -5,9 +5,12 @@ using Discord.WebSocket;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
+using Newtonsoft.Json;
 
 using System;
 using System.IO;
@@ -15,6 +18,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
 using WaitingListBot.Model;
 
 namespace WaitingListBot
@@ -23,16 +27,19 @@ namespace WaitingListBot
     {
         readonly IServiceCollection serviceCollection;
         readonly DiscordSocketClient client;
-        readonly StorageFactory storageFactory = new();
         readonly string token;
         readonly CommandHandler handler;
         readonly ILogger logger;
+
+        readonly Timer DMTimeout;
+        bool timerRunning = false;
 
         public Worker(ILogger<Worker> logger)
         {
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages | GatewayIntents.GuildMessageReactions,
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages 
+                | GatewayIntents.GuildMessageReactions | GatewayIntents.DirectMessages | GatewayIntents.DirectMessageReactions,
                 AlwaysDownloadUsers = true,
                 AlwaysAcknowledgeInteractions = false
             };
@@ -56,74 +63,190 @@ namespace WaitingListBot
 
             serviceCollection = new ServiceCollection();
             serviceCollection.AddSingleton(typeof(CommandService), commandService);
-            serviceCollection.AddSingleton(typeof(StorageFactory), storageFactory);
+            serviceCollection.AddDbContext<WaitingListDataContext>();
+
+            using (var waitingListDataContext = new WaitingListDataContext())
+            {
+                waitingListDataContext.Database.Migrate();
+            }
 
             handler = new CommandHandler(client, commandService, serviceCollection.BuildServiceProvider());
             this.logger = logger;
+
+            DMTimeout = new Timer(CheckForTimeout, null, 0, 1000);
+        }
+
+        private async void CheckForTimeout(object? state)
+        {
+            if (timerRunning)
+            {
+                return;
+            }
+            timerRunning = true;
+            using (var waitingListDataContext = new WaitingListDataContext())
+            {
+                foreach (var invitedUser in waitingListDataContext.InvitedUsers
+                    .Include(iu => iu.User).ThenInclude(iu => iu.Guild).Include(iu => iu.Invite))
+                {
+                    if (invitedUser.InviteAccepted == null)
+                    {
+                        if (invitedUser.InviteTime + TimeSpan.FromMinutes(1) < DateTime.Now)
+                        {
+                            var guild = client.GetGuild(invitedUser.User.Guild.GuildId);
+                            if (guild != null)
+                            {
+                                var waitingList = new CommandWaitingList(waitingListDataContext!, client.Rest, guild.Id);
+
+                                try
+                                {
+                                    await DeclineInviteAsync(guild, waitingList, invitedUser);
+
+                                    var dmChannel = await client.GetUser(invitedUser.User.UserId).GetOrCreateDMChannelAsync();
+
+                                    var message = await dmChannel.GetMessageAsync(invitedUser.DmQuestionMessageId);
+
+                                    await message.DeleteAsync();
+                                    await dmChannel.SendMessageAsync("Time ran out. Invite has been declined");
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogError("Error declining invite", ex);
+                                }
+
+                                waitingListDataContext.Update(invitedUser);
+
+                                waitingListDataContext.SaveChanges();
+                            }
+                        }
+                    }
+                }
+            }
+            timerRunning = false;
         }
 
         private async Task Client_InteractionCreated(SocketInteraction arg)
         {
-            if (arg.Type == InteractionType.MessageComponent)
+            using (var waitingListDataContext = new WaitingListDataContext())
             {
-                var parsedArg = (SocketMessageComponent)arg;
-
-                var customId = parsedArg.Data.CustomId;
-
-                var guild = ((IGuildChannel)parsedArg.Channel).Guild;
-                var storage = storageFactory.GetStorage(guild.Id);
-                var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
-
-                if (arg.User.IsBot)
+                if (arg.Type == InteractionType.MessageComponent)
                 {
-                    return;
-                }
-                if (parsedArg.Message.Id == storage.ReactionMessageId)
-                {
-                    if (customId == "join")
+                    var parsedArg = (SocketMessageComponent)arg;
+
+                    var customId = parsedArg.Data.CustomId;
+
+                    var guild = (parsedArg.Channel as IGuildChannel)?.Guild;
+                    var guildData = guild != null ? waitingListDataContext.GetGuild(guild.Id) : null;
+                    var waitingList = guild != null ? new CommandWaitingList(waitingListDataContext, client.Rest, guild.Id) : null;
+
+                    if (arg.User.IsBot)
                     {
-                        if (!(await waitingList.AddUserAsync((IGuildUser)parsedArg.User)).Success)
-                        {
-                            // await arg.RespondAsync("Failed");
-                            logger.LogError("Failed to join " + parsedArg.User);
-                        }
-                        else
-                        {
-                            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
-                        }
+                        return;
                     }
-                    else if (customId == "leave")
+                    if (parsedArg.Message.Id == guildData?.PublicMessageId)
                     {
-                        await waitingList.RemoveUserAsync(parsedArg.User.Id);
-                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
-                    }
+                        if (customId == "join")
+                        {
+                            if (!(await waitingList!.AddUserAsync((IGuildUser)parsedArg.User)).Success)
+                            {
+                                // await arg.RespondAsync("Failed");
+                                logger.LogError("Failed to join " + parsedArg.User);
+                            }
+                        }
+                        else if (customId == "leave")
+                        {
+                            await waitingList!.RemoveUserAsync(parsedArg.User.Id);
+                        }
 
-                    await parsedArg.AcknowledgeAsync();
-                }
-                else
-                {
-                    if (customId == "unpause")
-                    {
-                        storage.IsPaused = false;
-                        storage.Save();
+                        waitingListDataContext.SaveChanges();
 
-                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
-
+                        await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
                         await parsedArg.AcknowledgeAsync();
-
-                        await parsedArg.Message.DeleteAsync();
                     }
-                    else if (customId == "clearcounters")
+                    else
                     {
-                        storage.PlayCounter.Clear();
-                        storage.Save();
+                        if (customId == "unpause")
+                        {
+                            guildData!.IsPaused = false;
+                            waitingListDataContext.Update(guildData);
+                            waitingListDataContext.SaveChanges();
 
-                        await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, guild, storage);
+                            await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, guild!, guildData);
 
-                        await parsedArg.RespondAsync("Counters have been cleared");
+                            await parsedArg.AcknowledgeAsync();
+
+                            await parsedArg.Message.DeleteAsync();
+                        }
+                        else if (customId == "clearcounters")
+                        {
+                            foreach (var user in guildData!.UsersInList)
+                            {
+                                user.PlayCount = 0;
+                                waitingListDataContext.Update(user);
+                            }
+                            waitingListDataContext.SaveChanges();
+
+                            await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
+
+                            await parsedArg.RespondAsync("Counters have been cleared");
+                        }
+                        else if (customId.StartsWith("joinYes") || customId.StartsWith("joinNo"))
+                        {
+                            var parts = customId.Split(new[] { ';' }, 2);
+
+                            var inviteId = int.Parse(parts[1]);
+
+                            var invite = waitingListDataContext.Invites.Include(i => i.Guild).Include(i => i.InvitedUsers).ThenInclude(iu => iu.User).Single(i => i.Id == inviteId);
+
+                            var invitedUser = invite.InvitedUsers.Single(x => x.User.UserId == parsedArg.User.Id);
+
+                            guildData = invite.Guild;
+                            waitingList = new CommandWaitingList(waitingListDataContext!, client.Rest, guildData.GuildId);
+
+                            guild = client.GetGuild(guildData.GuildId);
+
+                            if (invitedUser.InviteAccepted != null)
+                            {
+                                return;
+                            }
+
+                            if (parts[0] == "joinYes")
+                            {
+                                await parsedArg.Message.DeleteAsync();
+                                await parsedArg.Channel.SendMessageAsync(string.Format(guildData.DMMessageFormat, invite.FormatData));
+                                invitedUser.InviteAccepted = true;
+                                waitingListDataContext.Update(invitedUser);
+                                waitingListDataContext.SaveChanges();
+                                await CommandWaitingListModule.UpdateInviteMessageAsync(guild, invite);
+                            }
+                            else
+                            {
+                                await parsedArg.Message.DeleteAsync();
+                                await parsedArg.Channel.SendMessageAsync("Invite has been declined");
+                                await DeclineInviteAsync(guild, waitingList, invitedUser);
+
+                                waitingListDataContext.Update(invitedUser);
+                                waitingListDataContext.SaveChanges();
+                            }
+                        }
                     }
                 }
             }
+        }
+
+        private static async Task DeclineInviteAsync(IGuild? guild, CommandWaitingList? waitingList, InvitedUser invitedUser)
+        {
+            invitedUser.InviteAccepted = false;
+
+            // Invite someone new
+            var result = await waitingList.InviteNextPlayerAsync(invitedUser.Invite);
+
+            if (!result.Success)
+            {
+                var textChannel = await guild.GetTextChannelAsync(invitedUser.Invite.InviteMessageChannelId);
+                await textChannel.SendMessageAsync("Could not invite additional user. List is empty");
+            }
+            await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, invitedUser.User.Guild);
+            await CommandWaitingListModule.UpdateInviteMessageAsync(guild, invitedUser.Invite);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -160,32 +283,41 @@ namespace WaitingListBot
 
         private async Task Client_GuildAvailable(SocketGuild guild)
         {
-            UpdateGuildInformation(guild);
-            var storage = storageFactory.GetStorage(guild.Id);
-            var waitingList = new CommandWaitingList(storage, client.Rest, guild.Id);
+            // Try to migrate old data:
+            using (var waitingListDataContext = new WaitingListDataContext())
+            {
+                if (waitingListDataContext.GetGuild(guild.Id) == null)
+                {
+                    StorageFactory factory = new StorageFactory();
 
-            // await ReactionWaitingListModule.SetWaitingListMembers(waitingList, guild, storage);
+                    var storage = factory.GetStorage(guild.Id);
+                    var guildData = waitingListDataContext.GetOrCreateGuildData(guild);
+
+                    guildData.CommandPrefix = storage.CommandPrefix;
+                    guildData.DMMessageFormat = storage.DMMessageFormat;
+                    guildData.SubRoleId = storage.SubRoleId;
+                    guildData.WaitingListChannelId = storage.WaitingListChannelId;
+
+                    waitingListDataContext.Update(guildData);
+
+                    waitingListDataContext.SaveChanges();
+                }
+            }
+
+            UpdateGuildInformation(guild);
         }
 
         private async Task Client_GuildUpdated(SocketGuild oldGuild, SocketGuild newGuild)
         {
             UpdateGuildInformation(newGuild);
-            var storage = storageFactory.GetStorage(newGuild.Id);
-            var waitingList = new CommandWaitingList(storage, client.Rest, newGuild.Id);
-
-            // await ReactionWaitingListModule.SetWaitingListMembers(waitingList, newGuild, storage);
         }
 
         private void UpdateGuildInformation(SocketGuild guild)
         {
-            var guildStorage = storageFactory.GetStorage(guild.Id);
-            guildStorage.Information = new GuildInformation()
+            using (var waitingListDataContext = new WaitingListDataContext())
             {
-                Name = guild.Name,
-                IconUrl = $"https://cdn.discordapp.com/icons/{guild.Id}/{guild.IconId}.png",
-                Description = guild.Description
-            };
-            guildStorage.Save();
+                waitingListDataContext.GetOrCreateGuildData(guild);
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -196,20 +328,21 @@ namespace WaitingListBot
         private async Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
         {
             // Try to update
-            var storageFactory = serviceCollection.BuildServiceProvider().GetService<StorageFactory>();
-
-            var storage = storageFactory!.GetStorage(after.Guild.Id);
-
-            foreach (var user in storage.List)
+            using (var waitingListDataContext = new WaitingListDataContext())
             {
-                if (user.Id == after.Id)
+                var guildData = waitingListDataContext.GetGuild(after.Guild.Id);
+
+                foreach (var user in guildData.UsersInGuild)
                 {
-                    user.Name = after.Nickname ?? after.Username;
-                    user.IsSub = after.Roles.Any(x => x.Id == storage.SubRoleId);
+                    if (user.UserId == after.Id)
+                    {
+                        user.Name = after.Nickname ?? after.Username;
+                        user.IsSub = after.Roles.Any(x => x.Id == guildData.SubRoleId);
+                    }
                 }
+                var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, after.Guild.Id);
+                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, after.Guild, guildData);
             }
-            var waitingList = new CommandWaitingList(storage, client.Rest, after.Guild.Id);
-            await ReactionWaitingListModule.UpdateReactionMessageAsync(waitingList, after.Guild, storage);
         }
 
         private Task Log(LogMessage logMessage)

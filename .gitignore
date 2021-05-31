@@ -342,3 +342,4 @@ healthchecksdb
 /WaitingListBot/token-dev.txt
 /WaitingListBot/guilds
 /WaitingListBot.Web/appsettings.json
+*.db

@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+
+using WaitingListBot.Data;
 
 namespace WaitingListBot.Api
 {
@@ -11,36 +11,46 @@ namespace WaitingListBot.Api
     [ApiController]
     public class GuildController : ControllerBase
     {
-        readonly StorageFactory storageFactory;
+        readonly WaitingListDataContext dataContext;
 
-        public GuildController(StorageFactory storageFactory)
+        public GuildController(WaitingListDataContext dataContext)
         {
-            this.storageFactory = storageFactory;
+            this.dataContext = dataContext;
         }
 
         [HttpGet]
         [Route("List")]
         public IEnumerable<ulong> List()
         {
-            return storageFactory.ListIds();
+            return dataContext.GuildData.AsQueryable().Select(x => x.GuildId);
         }
 
         [HttpGet]
         [Route("{guildId}/List")]
-        public IEnumerable<UserInListWithCounter>? ListPlayers(ulong guildId)
+        public IEnumerable<UserInGuild>? ListPlayers(ulong guildId)
         {
-            var storage = storageFactory.GetStorage(guildId);
+            var guildData = dataContext.GetGuild(guildId);
 
-            return storage?.GetSortedList();
+            return guildData?.GetSortedList();
         }
 
         [HttpGet]
         [Route("{guildId}/Info")]
-        public GuildInformation GetGuildInformation(ulong guildId)
+        public GuildInformation? GetGuildInformation(ulong guildId)
         {
-            var storage = storageFactory.GetStorage(guildId);
+            var guildData = dataContext.GetGuild(guildId);
 
-            return storage.Information;
+            if (guildData == null)
+            {
+                return null;
+            }
+
+            return new GuildInformation 
+            { 
+                Name = guildData.Name,
+                Description = guildData.Description,
+                IconUrl = guildData.IconUrl
+            };
         }
     }
 }

@@ -3,18 +3,20 @@
 using System;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot.Model
 {
     public interface IWaitingList
     {
         Task<CommandResult> AddUserAsync(IGuildUser guildUser);
         Task<CommandResult> RemoveUserAsync(ulong guildUserId);
-        Task SetUsersAsync (IGuildUser[] guildUsers);
 
-        Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true);
-        Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> ResendAsync(object[] arguments);
+        Task<(CommandResult commandResult, Invite invite)> GetInvite(string[] arguments, int numberOfPlayers, bool removeFromList = true);
+        Task<CommandResult> ResendAsync(Invite invite, string[] arguments);
 
-        Task<UserInListWithCounter[]> GetPlayerListAsync();
+        Task<UserInGuild[]> GetPlayerListAsync();
+        void ClearUsers();
     }
 
     public record CommandResult(bool Success, string? Message)

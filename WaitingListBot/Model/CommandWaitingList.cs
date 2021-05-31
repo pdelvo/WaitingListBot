@@ -1,59 +1,64 @@
 ﻿using Discord;
 using Discord.WebSocket;
 
+using Newtonsoft.Json;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+
+using WaitingListBot.Data;
 
 namespace WaitingListBot.Model
 {
     public class CommandWaitingList : IWaitingList
     {
-        readonly Storage storage;
+        readonly WaitingListDataContext dataContext;
         readonly DiscordSocketRestClient restClient;
         readonly ulong guildId;
+        GuildData guildData;
 
-
-        public CommandWaitingList(Storage storage, DiscordSocketRestClient restClient, ulong guildId)
+        public CommandWaitingList(WaitingListDataContext dataContext, DiscordSocketRestClient restClient, ulong guildId)
         {
-            this.storage = storage;
+            this.dataContext = dataContext;
             this.restClient = restClient;
             this.guildId = guildId;
+
+            this.guildData = dataContext.GetGuild(guildId)!;
         }
 
-        public Task<CommandResult> AddUserAsync(IGuildUser guildUser)
+        public async Task<CommandResult> AddUserAsync(IGuildUser guildUser)
         {
-            if (!storage.IsEnabled)
+            if (!guildData.IsEnabled)
             {
-                return Task.FromResult(CommandResult.FromError("Waiting list is not open"));
+                return CommandResult.FromError("Waiting list is not open");
             }
 
-            if (storage.List.Any(x => x.Id == guildUser.Id))
+            if (guildData.UsersInList.Any(x => x.UserId == guildUser.Id))
             {
-                return Task.FromResult(CommandResult.FromError("You are already on the waiting list!"));
+                return CommandResult.FromError("You are already on the waiting list!");
             }
             else
             {
-                // Add user the the waiting list
-                UserInList userInList = new()
-                {
-                    Id = guildUser.Id,
-                    Name = guildUser.Nickname ?? guildUser.Username,
-                    JoinTime = DateTime.Now,
-                    IsSub = guildUser.RoleIds.Contains(storage.SubRoleId)
-                };
+                var userInList = guildData.GetOrCreateGuildUser(guildUser.Id, guildUser.Nickname ?? guildUser.Username);
 
-                storage.List.Add(userInList);
-                storage.Save();
+                userInList.IsInWaitingList = true;
+                userInList.JoinTime = DateTime.Now;
+                userInList.IsSub = guildUser.RoleIds.Contains(guildData.SubRoleId);
 
-                return Task.FromResult(CommandResult.FromSuccess($"Waiting list joined!"));
+                dataContext.Update(userInList);
+
+                await dataContext.SaveChangesAsync();
+
+                return CommandResult.FromSuccess($"Waiting list joined!");
             }
         }
 
-        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> GetNextPlayersAsync(object[] arguments, int numberOfPlayers, bool removeFromList = true)
+        public async Task<(CommandResult commandResult, Invite? invite)> GetInvite(string[] arguments, int numberOfPlayers, bool removeFromList = true)
         {
-            var list = storage.GetSortedList();
+            var list = guildData.GetSortedList();
 
             if (list.Count < numberOfPlayers)
             {
@@ -64,121 +69,198 @@ namespace WaitingListBot.Model
 
             try
             {
-                message = string.Format(storage.DMMessageFormat, arguments);
+                message = string.Format(guildData.DMMessageFormat, arguments);
             }
             catch (Exception)
             {
                 return (CommandResult.FromError("The arguments had the wrong format"), null);
             }
-            // Send invites
 
-            void IncreasePlayCounter(ulong id)
+            var invite = new Invite
             {
-                var entry = storage.PlayCounter.SingleOrDefault(x => x.Id == id);
+                FormatData = arguments,
+                Guild = guildData,
+                InvitedUsers = new List<InvitedUser>(),
+                InviteTime = DateTime.Now,
+                NumberOfInvitedUsers = numberOfPlayers
+            };
 
-                if (entry == null)
-                {
-                    storage.PlayCounter.Add(new PlayCounter { Id = id, Counter = 1 });
-                }
-                else
-                {
-                    entry.Counter++;
-                }
-            }
+            dataContext.Invites.Add(invite);
+            dataContext.SaveChanges();
 
-            List<(CommandResult, UserInListWithCounter)> invitedPlayers = new();
+            StringBuilder warnings = new StringBuilder();
 
+            // Send invites
             for (int i = 0; i < numberOfPlayers; i++)
             {
                 var player = list[i];
-                storage.List.Remove(storage.List.Single(x => x.Id == player.Id));
-                IncreasePlayCounter(player.Id);
-                storage.Save();
 
-                var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.Id);
+                player.IsInWaitingList = false;
+                player.PlayCount++;
+
+                dataContext.Update(player);
+                dataContext.SaveChanges();
+
+                var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.UserId);
                 try
                 {
+                    ComponentBuilder componentBuilder = new ComponentBuilder();
+                    componentBuilder.WithButton("Yes", customId: $"joinYes;{invite.Id}");
+                    componentBuilder.WithButton("No", customId: $"joinNo;{invite.Id}");
 
-                    await restGuildUser.SendMessageAsync(message);
 
-                    invitedPlayers.Add((CommandResult.FromSuccess("Player invited"), player));
+                    var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", component: componentBuilder.Build());
+
+
+                    invite.InvitedUsers.Add(new InvitedUser
+                    {
+                        Invite = invite,
+                        InviteTime = DateTime.Now,
+                        DmQuestionMessageId = userMessage.Id,
+                        User = player
+                    });
                 }
                 catch (Exception ex)
                 {
-                    invitedPlayers.Add((CommandResult.FromError($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}"), player));
+                    warnings.AppendLine($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
                 }
             }
 
-            return (CommandResult.FromSuccess("Players have been invited."), invitedPlayers.ToArray());
+            this.dataContext.Update(invite);
+
+            await this.dataContext.SaveChangesAsync();
+
+            return (CommandResult.FromSuccess("Players have been invited." + (warnings.Length > 0 ? "\r\n" + warnings.ToString() : "")), invite);
+        }
+        public async Task<CommandResult> InviteNextPlayerAsync(Invite invite)
+        {
+            var list = guildData.GetSortedList();
+
+            if (list.Count == 0)
+            {
+                return CommandResult.FromError($"Could not invite additional player. List is empty.");
+            }
+
+            string message;
+
+            try
+            {
+                message = string.Format(guildData.DMMessageFormat, invite.FormatData);
+            }
+            catch (Exception)
+            {
+                return CommandResult.FromError("The arguments had the wrong format");
+            }
+
+            StringBuilder warnings = new StringBuilder();
+
+            // Send invites
+            var player = list[0];
+
+            player.IsInWaitingList = false;
+            player.PlayCount++;
+
+            dataContext.Update(player);
+            dataContext.SaveChanges();
+
+            var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.UserId);
+            try
+            {
+                ComponentBuilder componentBuilder = new ComponentBuilder();
+                componentBuilder.WithButton("Yes", customId: $"joinYes;{invite.Id}");
+                componentBuilder.WithButton("No", customId: $"joinNo;{invite.Id}");
+
+
+                var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", component: componentBuilder.Build());
+
+
+                invite.InvitedUsers.Add(new InvitedUser
+                {
+                    Invite = invite,
+                    InviteTime = DateTime.Now,
+                    DmQuestionMessageId = userMessage.Id,
+                    User = player
+                });
+
+                dataContext.Update(invite);
+                dataContext.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                warnings.AppendLine($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
+            }
+
+            await this.dataContext.SaveChangesAsync();
+
+            return CommandResult.FromSuccess("Players have been invited." + (warnings.Length > 0 ? "\r\n" + warnings.ToString() : ""));
         }
 
-        public async Task<(CommandResult commandResult, (CommandResult, UserInListWithCounter)[]? players)> ResendAsync(object[] arguments)
+        public async Task<CommandResult> ResendAsync(Invite invite, string[] arguments)
         {
-            var list = storage.LastInvited;
+            var list = invite.InvitedUsers;
 
             if (list == null)
             {
-                return (CommandResult.FromError("Cant resend. List does not exist."), null);
+                return CommandResult.FromError("Cant resend. List does not exist.");
             }
 
             // Send invites
 
-            List<(CommandResult, UserInListWithCounter)> invitedPlayers = new();
+            invite.FormatData = arguments;
+            StringBuilder warnings = new StringBuilder();
 
-            for (int i = 0; i < list.Count; i++)
+            foreach (var player in list)
             {
-                var player = list[i];
+                if (player.InviteAccepted != true)
+                {
+                    continue;
+                }
 
-                var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.Id);
+                var restGuildUser = await restClient.GetGuildUserAsync(guildId, player.User.UserId);
                 try
                 {
-                    var message = string.Format(storage.DMMessageFormat, arguments);
+                    var message = string.Format(guildData.DMMessageFormat, arguments);
 
                     await restGuildUser.SendMessageAsync(message);
-
-                    invitedPlayers.Add((CommandResult.FromSuccess("Player invited"), player));
-                }
-                catch (FormatException)
-                {
-                    return (CommandResult.FromError("The arguments had the wrong format"), null);
                 }
                 catch (Exception ex)
                 {
-                    invitedPlayers.Add((CommandResult.FromError($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}"), player));
+                    warnings.AppendLine($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
                 }
             }
 
-            return (CommandResult.FromSuccess("Players have been invited."), invitedPlayers.ToArray());
+            return CommandResult.FromSuccess("Players have been invited." + (warnings.Length > 0 ? "\r\n" + warnings.ToString() : ""));
         }
 
-        public Task<UserInListWithCounter[]> GetPlayerListAsync()
+        public Task<UserInGuild[]> GetPlayerListAsync()
         {
-            return Task.FromResult(storage.GetSortedList().ToArray());
+            return Task.FromResult(guildData.GetSortedList().ToArray());
         }
 
         public Task<CommandResult> RemoveUserAsync(ulong guildUserId)
         {
-            var entry = storage.List.SingleOrDefault(x => x.Id == guildUserId);
-            if (entry == null)
+            var user = guildData.GetUser(guildUserId);
+            if (user == null)
             {
                 return Task.FromResult(CommandResult.FromError("You are not on the waiting list!"));
             }
             else
             {
-                storage.List.Remove(entry);
-                storage.Save();
+                user.IsInWaitingList = false;
+                user.JoinTime = default;
+
+                dataContext.Update(user);
 
                 return Task.FromResult(CommandResult.FromSuccess("You left the waiting list!"));
             }
         }
 
-        public async Task SetUsersAsync(IGuildUser[] guildUsers)
+        public void ClearUsers()
         {
-            storage.List = storage.List.Where(x => guildUsers.Any(user => x.Id == user.Id)).ToList();
-
-            foreach (var user in guildUsers)
+            foreach (var userInGuild in guildData.UsersInGuild)
             {
-                await AddUserAsync(user);
+                userInGuild.IsInWaitingList = false;
+                userInGuild.JoinTime = default;
             }
         }
     }

@@ -7,6 +7,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot
 {
     public class CommandHandler
@@ -42,7 +44,7 @@ namespace WaitingListBot
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
-            var storageFactory = (StorageFactory)_services.GetService(typeof(StorageFactory))!;
+            var dataContext = (WaitingListDataContext)_services.GetService(typeof(WaitingListDataContext))!;
 
             // Don't process the command if it was a system message
             if (messageParam is not SocketUserMessage message) return;
@@ -57,40 +59,22 @@ namespace WaitingListBot
                 return;
             }
 
-            var storage = storageFactory!.GetStorage(guild.Id);
-
-            if (!storage.IsInitialized)
-            {
-                storage.IsInitialized = true;
-                foreach (var userInList in storage.List)
-                {
-                    try
-                    {
-                        var guildUser = guild.GetUser(userInList.Id);
-                        userInList.Name = guildUser.Nickname ?? guildUser.Username;
-                        userInList.IsSub = guildUser.Roles.Any(x => x.Id == storage.SubRoleId);
-                    }
-                    catch { }
-                }
-            }
+            var guildData = dataContext!.GetOrCreateGuildData(guild);
 
             var channel = message.Channel;
 
-            if (channel.Id != storage.WaitingListChannelId)
+            // Only allow mods to issue commands
+            var guildUser = message.Author as IGuildUser;
+            if (!ModPermissionAttribute.HasModPermission(guildUser).IsSuccess)
             {
-                // Only allow mods to issue commands outside the waiting list channel
-                var guildUser = message.Author as IGuildUser;
-                if (!ModPermissionAttribute.HasModPermission(guildUser).IsSuccess)
-                {
-                    return;
-                }
+                return;
             }
 
             // Create a number to track where the prefix ends and the command begins
             int argPos = 0;
 
             // Determine if the message is a command based on the prefix and make sure no bots trigger commands
-            if (!(message.HasStringPrefix(storage.CommandPrefix, ref argPos) ||
+            if (!(message.HasStringPrefix(guildData?.CommandPrefix, ref argPos) ||
                 message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
                 return;
 
