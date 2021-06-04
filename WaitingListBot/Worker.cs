@@ -52,7 +52,7 @@ namespace WaitingListBot
             client.GuildAvailable += Client_GuildAvailable;
             client.InteractionCreated += Client_InteractionCreated;
 
-#if !DEBUG
+#if DEBUG
             token = File.ReadAllText("token-dev.txt");
 #else
             token = File.ReadAllText("token.txt");
