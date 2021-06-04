@@ -18,7 +18,7 @@ namespace WaitingListBot
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            CreateHostBuilder(args).UseConsoleLifetime().Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

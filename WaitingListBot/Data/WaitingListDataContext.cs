@@ -63,7 +63,8 @@ namespace WaitingListBot.Data
             builder.AddJsonFile("appsettings.json");
             var configuration = builder.Build();
 
-            options.UseSqlite(configuration.GetConnectionString("UserContext"));
+            string connectionString = configuration.GetConnectionString("DefaultConnection");
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

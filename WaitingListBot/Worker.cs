@@ -52,7 +52,7 @@ namespace WaitingListBot
             client.GuildAvailable += Client_GuildAvailable;
             client.InteractionCreated += Client_InteractionCreated;
 
-#if DEBUG
+#if !DEBUG
             token = File.ReadAllText("token-dev.txt");
 #else
             token = File.ReadAllText("token.txt");
@@ -86,7 +86,7 @@ namespace WaitingListBot
             using (var waitingListDataContext = new WaitingListDataContext())
             {
                 foreach (var invitedUser in waitingListDataContext.InvitedUsers
-                    .Include(iu => iu.User).ThenInclude(iu => iu.Guild).Include(iu => iu.Invite))
+                    .Include(iu => iu.User).ThenInclude(iu => iu.Guild).Include(iu => iu.Invite).ToList())
                 {
                     if (invitedUser.InviteAccepted == null)
                     {
@@ -116,6 +116,8 @@ namespace WaitingListBot
                                 waitingListDataContext.Update(invitedUser);
 
                                 waitingListDataContext.SaveChanges();
+
+                                await CommandWaitingListModule.UpdateInviteMessageAsync(guild, invitedUser.Invite);
                             }
                         }
                     }
@@ -178,7 +180,7 @@ namespace WaitingListBot
                         }
                         else if (customId == "clearcounters")
                         {
-                            foreach (var user in guildData!.UsersInList)
+                            foreach (var user in guildData!.UsersInGuild)
                             {
                                 user.PlayCount = 0;
                                 waitingListDataContext.Update(user);
@@ -197,7 +199,7 @@ namespace WaitingListBot
 
                             var invite = waitingListDataContext.Invites.Include(i => i.Guild).Include(i => i.InvitedUsers).ThenInclude(iu => iu.User).Single(i => i.Id == inviteId);
 
-                            var invitedUser = invite.InvitedUsers.Single(x => x.User.UserId == parsedArg.User.Id);
+                            var invitedUser = invite.InvitedUsers.Last(x => x.User.UserId == parsedArg.User.Id);
 
                             guildData = invite.Guild;
                             waitingList = new CommandWaitingList(waitingListDataContext!, client.Rest, guildData.GuildId);
@@ -226,6 +228,7 @@ namespace WaitingListBot
 
                                 waitingListDataContext.Update(invitedUser);
                                 waitingListDataContext.SaveChanges();
+                                await CommandWaitingListModule.UpdateInviteMessageAsync(guild, invite);
                             }
                         }
                     }
@@ -246,7 +249,6 @@ namespace WaitingListBot
                 await textChannel.SendMessageAsync("Could not invite additional user. List is empty");
             }
             await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, invitedUser.User.Guild);
-            await CommandWaitingListModule.UpdateInviteMessageAsync(guild, invitedUser.Invite);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -294,7 +296,7 @@ namespace WaitingListBot
                     var guildData = waitingListDataContext.GetOrCreateGuildData(guild);
 
                     guildData.CommandPrefix = storage.CommandPrefix;
-                    guildData.DMMessageFormat = storage.DMMessageFormat;
+                    guildData.DMMessageFormat = storage.DMMessageFormat ?? "You have been invited to play!\n Name: {0}\nPassword: {1}";
                     guildData.SubRoleId = storage.SubRoleId;
                     guildData.WaitingListChannelId = storage.WaitingListChannelId;
 
@@ -320,9 +322,11 @@ namespace WaitingListBot
             }
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
-            return client.StopAsync();
+            DMTimeout.Change(Timeout.Infinite, Timeout.Infinite);
+            await client.LogoutAsync();
+            await client.StopAsync();
         }
 
         private async Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)

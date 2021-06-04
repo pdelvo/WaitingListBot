@@ -1,9 +1,11 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace WaitingListBot.Data
 {
     public class UserInGuild
     {
+        [Key]
         public int Id { get; set; }
 
         public GuildData Guild { get; set; }

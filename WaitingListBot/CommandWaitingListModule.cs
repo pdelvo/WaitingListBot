@@ -41,6 +41,7 @@ namespace WaitingListBot
         protected override void AfterExecute(CommandInfo command)
         {
             dataContext.SaveChanges();
+            dataContext.Dispose();
             base.AfterExecute(command);
         }
 
@@ -188,12 +189,16 @@ namespace WaitingListBot
                 invite.InviteMessageChannelId = inviteMessage.Channel.Id;
                 invite.InviteMessageId = inviteMessage.Id;
 
+                dataContext.Update(invite);
+                dataContext.SaveChanges();
+
                 await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
                 await UpdateInviteMessageAsync(Context.Guild, invite);
             }
             catch (Exception ex)
             {
-                var myDMChannel = await Context.Client.Rest.GetDMChannelAsync(367018778409566209);
+                var user = await Context.Client.Rest.GetUserAsync(367018778409566209);
+                var myDMChannel = await user.GetOrCreateDMChannelAsync();
                 await myDMChannel.SendMessageAsync("Server: " + Context.Guild.Name);
 
                 await myDMChannel.SendMessageAsync(ex.ToString());
@@ -249,7 +254,7 @@ namespace WaitingListBot
 
             await message.ModifyAsync(p =>
             {
-                p.Content = $"Join the waiting list now!:";
+                p.Content = $"Invited players:";
                 p.Embed = embed;
             });
         }
@@ -294,7 +299,6 @@ namespace WaitingListBot
         [Summary("Enters the waiting list.")]
         [ModPermission]
         [CheckIfWaitingListIsActive(true)]
-        [NotWhenReactionBasedWaitingListEnabled]
         public Task JoinAsync(IGuildUser user) => PlayAsync(user);
 
 
@@ -302,7 +306,6 @@ namespace WaitingListBot
         [Summary("Enters the waiting list.")]
         [ModPermission]
         [CheckIfWaitingListIsActive(true)]
-        [NotWhenReactionBasedWaitingListEnabled]
         public async Task PlayAsync(IGuildUser guildUser)
         {
             if (guildUser == null)
@@ -332,14 +335,8 @@ namespace WaitingListBot
                 dataContext.SaveChanges();
 
                 await Context.Message.ReplyAsync($"Waiting list joined!");
+                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
             }
-        }
-
-        [Command("leave")]
-        [Summary("Leaves the waiting list.")]
-        public Task LeaveAsync()
-        {
-            return LeaveAsync(Context.User as IGuildUser);
         }
 
         [Command("leave")]
@@ -365,6 +362,7 @@ namespace WaitingListBot
                 dataContext.SaveChanges();
 
                 await Context.Message.ReplyAsync($"User left the waiting list!");
+                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
             }
 
         }

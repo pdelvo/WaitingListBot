@@ -24,27 +24,28 @@ namespace WaitingListBot
 
             if (guild != null)
             {
-                var dataContext = (WaitingListDataContext)services.GetService(typeof(WaitingListDataContext))!;
-
-                var guildData = dataContext.GetGuild(guild.Id);
-
-                if (allowRunningIfListIsActive == guildData?.IsEnabled)
+                using (var dataContext = new WaitingListDataContext())
                 {
-                    return Task.FromResult(PreconditionResult.FromSuccess());
-                }
-                else
-                {
-                    if (allowRunningIfListIsActive)
+
+                    var guildData = dataContext.GetGuild(guild.Id);
+
+                    if (allowRunningIfListIsActive == guildData?.IsEnabled)
                     {
-                        return Task.FromResult(PreconditionResult.FromError("Cannot run this command if the waiting list is closed."));
+                        return Task.FromResult(PreconditionResult.FromSuccess());
                     }
                     else
                     {
-                        return Task.FromResult(PreconditionResult.FromError("Cannot run this command if the waiting list is open."));
+                        if (allowRunningIfListIsActive)
+                        {
+                            return Task.FromResult(PreconditionResult.FromError("Cannot run this command if the waiting list is closed."));
+                        }
+                        else
+                        {
+                            return Task.FromResult(PreconditionResult.FromError("Cannot run this command if the waiting list is open."));
+                        }
                     }
                 }
             }
-
             return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }

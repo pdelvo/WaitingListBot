@@ -44,8 +44,6 @@ namespace WaitingListBot
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
-            var dataContext = (WaitingListDataContext)_services.GetService(typeof(WaitingListDataContext))!;
-
             // Don't process the command if it was a system message
             if (messageParam is not SocketUserMessage message) return;
 
@@ -59,25 +57,27 @@ namespace WaitingListBot
                 return;
             }
 
-            var guildData = dataContext!.GetOrCreateGuildData(guild);
-
-            var channel = message.Channel;
-
-            // Only allow mods to issue commands
-            var guildUser = message.Author as IGuildUser;
-            if (!ModPermissionAttribute.HasModPermission(guildUser).IsSuccess)
-            {
-                return;
-            }
-
             // Create a number to track where the prefix ends and the command begins
             int argPos = 0;
 
-            // Determine if the message is a command based on the prefix and make sure no bots trigger commands
-            if (!(message.HasStringPrefix(guildData?.CommandPrefix, ref argPos) ||
-                message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
-                return;
+            using (var dataContext = new WaitingListDataContext())
+            {
+                var guildData = dataContext!.GetOrCreateGuildData(guild);
 
+                var channel = message.Channel;
+
+                // Only allow mods to issue commands
+                var guildUser = message.Author as IGuildUser;
+                if (!ModPermissionAttribute.HasModPermission(guildUser).IsSuccess)
+                {
+                    return;
+                }
+
+                // Determine if the message is a command based on the prefix and make sure no bots trigger commands
+                if (!(message.HasStringPrefix(guildData?.CommandPrefix, ref argPos) ||
+                    message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
+                    return;
+            }
             // Create a WebSocket-based command context based on the message
             var context = new SocketCommandContext(_client, message);
 

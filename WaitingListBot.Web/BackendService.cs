@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot.Web
 {
     public class BackendService
@@ -42,12 +44,12 @@ namespace WaitingListBot.Web
             return JsonConvert.DeserializeObject<List<ulong>>(result);
         }
 
-        public async Task<List<UserInListWithCounter>> GetPlayers(ulong guildId)
+        public async Task<List<UserInGuild>> GetPlayers(ulong guildId)
         {
             var client = GetHttpClient();
             var result = await client.GetStringAsync($"Guild/{guildId}/List");
 
-            return JsonConvert.DeserializeObject<List<UserInListWithCounter>>(result);
+            return JsonConvert.DeserializeObject<List<UserInGuild>>(result);
         }
 
         public async Task<GuildInformation> GetGuildInformation(ulong guildId)

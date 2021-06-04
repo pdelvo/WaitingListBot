@@ -13,9 +13,9 @@ namespace WaitingListBot.Api
     {
         readonly WaitingListDataContext dataContext;
 
-        public GuildController(WaitingListDataContext dataContext)
+        public GuildController()
         {
-            this.dataContext = dataContext;
+            dataContext = new WaitingListDataContext();
         }
 
         [HttpGet]
@@ -31,7 +31,16 @@ namespace WaitingListBot.Api
         {
             var guildData = dataContext.GetGuild(guildId);
 
-            return guildData?.GetSortedList();
+            List<UserInGuild>? sortedList = guildData?.GetSortedList();
+
+            // We dont want to leak this
+            foreach (var item in sortedList!)
+            {
+                item.UserId = 0;
+                item.Guild = null!;
+            }
+
+            return sortedList;
         }
 
         [HttpGet]

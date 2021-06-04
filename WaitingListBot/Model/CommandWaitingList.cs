@@ -112,13 +112,15 @@ namespace WaitingListBot.Model
                     var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", component: componentBuilder.Build());
 
 
-                    invite.InvitedUsers.Add(new InvitedUser
+                    InvitedUser invitedUser = new InvitedUser
                     {
                         Invite = invite,
                         InviteTime = DateTime.Now,
                         DmQuestionMessageId = userMessage.Id,
                         User = player
-                    });
+                    };
+
+                    dataContext.InvitedUsers.Add(invitedUser);
                 }
                 catch (Exception ex)
                 {

@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+using WaitingListBot.Data;
+
 namespace WaitingListBot.Web.Areas.Identity.Pages
 {
     public class WaitingListModel : PageModel
@@ -13,7 +15,7 @@ namespace WaitingListBot.Web.Areas.Identity.Pages
         readonly HealthCheckService healthCheckService;
         readonly BackendService backendService;
 
-        public List<UserInListWithCounter> Users;
+        public List<UserInGuild> Users;
 
         [BindProperty(SupportsGet = true)]
         public bool Minimal { get; set; }
@@ -33,6 +35,12 @@ namespace WaitingListBot.Web.Areas.Identity.Pages
         public async Task<IActionResult> OnGet(ulong id)
         {
             this.Id = id;
+
+            if ((await healthCheckService.CheckHealthAsync()).Status != HealthStatus.Healthy)
+            {
+                return Page();
+            }
+
             var guildInformation = await backendService.GetGuildInformation(id);
             GuildName = guildInformation?.Name;
             GuildIconUrl = guildInformation?.IconUrl;

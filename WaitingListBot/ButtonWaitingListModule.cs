@@ -39,6 +39,7 @@ namespace WaitingListBot
         protected override void AfterExecute(CommandInfo command)
         {
             dataContext.SaveChanges();
+            dataContext.Dispose();
             base.AfterExecute(command);
         }
 
