@@ -343,3 +343,4 @@ healthchecksdb
 /WaitingListBot/guilds
 /WaitingListBot.Web/appsettings.json
 *.db
+/WaitingListBot/appsettings.json
