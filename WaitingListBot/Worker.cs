@@ -52,11 +52,12 @@ namespace WaitingListBot
             client.GuildAvailable += Client_GuildAvailable;
             client.InteractionCreated += Client_InteractionCreated;
 
-#if DEBUG
-            token = File.ReadAllText("token-dev.txt");
-#else
+            //#if DEBUG
+            //            token = File.ReadAllText("token-dev.txt");
+            //#else
+            //            token = File.ReadAllText("token.txt");
+            //#endif
             token = File.ReadAllText("token.txt");
-#endif
 
             // Commands are not thread safe. So set the run mode to sync
             var commandService = new CommandService(new CommandServiceConfig { DefaultRunMode = RunMode.Sync, LogLevel = LogSeverity.Info });
@@ -148,7 +149,11 @@ namespace WaitingListBot
                     {
                         if (customId == "join")
                         {
-                            if (!(await waitingList!.AddUserAsync((IGuildUser)parsedArg.User)).Success)
+                            if ((await waitingList!.AddUserAsync((IGuildUser)parsedArg.User)).Success)
+                            {
+                                await parsedArg.RespondAsync("Joined Waiting list.", ephemeral: true);
+                            }
+                            else
                             {
                                 // await arg.RespondAsync("Failed");
                                 logger.LogError("Failed to join " + parsedArg.User);
@@ -157,12 +162,12 @@ namespace WaitingListBot
                         else if (customId == "leave")
                         {
                             await waitingList!.RemoveUserAsync(parsedArg.User.Id);
+                            await parsedArg.RespondAsync("Left waiting list.", ephemeral: true);
                         }
 
                         waitingListDataContext.SaveChanges();
 
                         await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
-                        await parsedArg.AcknowledgeAsync();
                     }
                     else
                     {
@@ -303,6 +308,9 @@ namespace WaitingListBot
                     waitingListDataContext.Update(guildData);
 
                     waitingListDataContext.SaveChanges();
+
+                    var waitingList = new CommandWaitingList(waitingListDataContext!, client.Rest, guildData.GuildId);
+                    await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
                 }
             }
 

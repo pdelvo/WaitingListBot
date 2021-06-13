@@ -339,6 +339,41 @@ namespace WaitingListBot
             }
         }
 
+        [Command("setcounter")]
+        [Summary("Set the counter value for a user.")]
+        [ModPermission]
+        [CheckIfWaitingListIsActive(true)]
+        public async Task SetCounterAsync(IGuildUser guildUser, int counter)
+        {
+            if (guildUser == null)
+            {
+                return;
+            }
+
+            if (!guildData.IsEnabled)
+            {
+                await Context.Message.ReplyAsync("The waiting list is closed.");
+                return;
+            }
+
+            var userInGuild = guildData.GetOrCreateGuildUser(guildUser.Id, guildUser.Nickname ?? guildUser.Username);
+
+            if (userInGuild.IsInWaitingList)
+            {
+                await Context.Message.ReplyAsync("You are already on the waiting list!");
+            }
+            else
+            {
+                // Add user the the waiting list
+                userInGuild.PlayCount = counter;
+                dataContext.Update(userInGuild);
+                dataContext.SaveChanges();
+
+                await Context.Message.ReplyAsync($"Updated counter for {userInGuild.Name}");
+                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
+            }
+        }
+
         [Command("leave")]
         [Summary("Leaves the waiting list.")]
         public async Task LeaveAsync(IGuildUser? guildUser)
