@@ -138,8 +138,15 @@ namespace WaitingListBot
                     var customId = parsedArg.Data.CustomId;
 
                     var guild = (parsedArg.Channel as IGuildChannel)?.Guild;
-                    var guildData = guild != null ? waitingListDataContext.GetGuild(guild.Id) : null;
-                    var waitingList = guild != null ? new CommandWaitingList(waitingListDataContext, client.Rest, guild.Id) : null;
+
+                    if (guild == null)
+                    {
+                        return;
+                    }
+
+                    var guildData = waitingListDataContext.GetGuild(guild.Id);
+
+                    var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, guild.Id);
 
                     if (arg.User.IsBot)
                     {
@@ -166,6 +173,12 @@ namespace WaitingListBot
                         }
 
                         waitingListDataContext.SaveChanges();
+                        guildData = waitingListDataContext.GetGuild(guild.Id);
+
+                        if (guildData == null)
+                        {
+                            return;
+                        }
 
                         await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
                     }
