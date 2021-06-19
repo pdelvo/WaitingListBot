@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
+using Discord.Rest;
 using Discord.WebSocket;
 
 using Microsoft.AspNetCore;
@@ -100,9 +101,9 @@ namespace WaitingListBot
 
                                 try
                                 {
-                                    await DeclineInviteAsync(guild, waitingList, invitedUser);
+                                    await DeclineInviteAsync(client.Rest, guild, waitingList, invitedUser);
 
-                                    var dmChannel = await client.GetUser(invitedUser.User.UserId).GetOrCreateDMChannelAsync();
+                                    var dmChannel = await (await client.Rest.GetUserAsync(invitedUser.User.UserId)).GetOrCreateDMChannelAsync();
 
                                     var message = await dmChannel.GetMessageAsync(invitedUser.DmQuestionMessageId);
 
@@ -139,14 +140,9 @@ namespace WaitingListBot
 
                     var guild = (parsedArg.Channel as IGuildChannel)?.Guild;
 
-                    if (guild == null)
-                    {
-                        return;
-                    }
 
-                    var guildData = waitingListDataContext.GetGuild(guild.Id);
-
-                    var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, guild.Id);
+                    var guildData = guild != null ? waitingListDataContext.GetGuild(guild.Id) : null;
+                    var waitingList = guild != null ? new CommandWaitingList(waitingListDataContext, client.Rest, guild.Id) : null;
 
                     if (arg.User.IsBot)
                     {
@@ -154,6 +150,11 @@ namespace WaitingListBot
                     }
                     if (parsedArg.Message.Id == guildData?.PublicMessageId)
                     {
+                        if (guild == null || guildData == null)
+                        {
+                            logger.LogCritical("Guild or guildData was null in InteractionCreated");
+                            return;
+                        }
                         if (customId == "join")
                         {
                             if ((await waitingList!.AddUserAsync((IGuildUser)parsedArg.User)).Success)
@@ -174,11 +175,6 @@ namespace WaitingListBot
 
                         waitingListDataContext.SaveChanges();
                         guildData = waitingListDataContext.GetGuild(guild.Id);
-
-                        if (guildData == null)
-                        {
-                            return;
-                        }
 
                         await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
                     }
@@ -242,7 +238,7 @@ namespace WaitingListBot
                             {
                                 await parsedArg.Message.DeleteAsync();
                                 await parsedArg.Channel.SendMessageAsync("Invite has been declined");
-                                await DeclineInviteAsync(guild, waitingList, invitedUser);
+                                await DeclineInviteAsync(client.Rest, guild, waitingList, invitedUser);
 
                                 waitingListDataContext.Update(invitedUser);
                                 waitingListDataContext.SaveChanges();
@@ -254,7 +250,7 @@ namespace WaitingListBot
             }
         }
 
-        private static async Task DeclineInviteAsync(IGuild? guild, CommandWaitingList? waitingList, InvitedUser invitedUser)
+        private static async Task DeclineInviteAsync(DiscordRestClient client, IGuild? guild, CommandWaitingList? waitingList, InvitedUser invitedUser)
         {
             invitedUser.InviteAccepted = false;
 
@@ -263,7 +259,9 @@ namespace WaitingListBot
 
             if (!result.Success)
             {
-                var textChannel = await guild.GetTextChannelAsync(invitedUser.Invite.InviteMessageChannelId);
+
+                var restGuild = await client.GetGuildAsync(guild.Id);
+                var textChannel = await restGuild.GetTextChannelAsync(invitedUser.Invite.InviteMessageChannelId);
                 await textChannel.SendMessageAsync("Could not invite additional user. List is empty");
             }
             await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, invitedUser.User.Guild);
