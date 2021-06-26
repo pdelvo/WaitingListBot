@@ -159,7 +159,7 @@ namespace WaitingListBot
                         {
                             if ((await waitingList!.AddUserAsync((IGuildUser)parsedArg.User)).Success)
                             {
-                                await parsedArg.RespondAsync("Joined Waiting list.", ephemeral: true);
+                                // await parsedArg.RespondAsync("Joined Waiting list.", ephemeral: true);
                             }
                             else
                             {
@@ -170,13 +170,15 @@ namespace WaitingListBot
                         else if (customId == "leave")
                         {
                             await waitingList!.RemoveUserAsync(parsedArg.User.Id);
-                            await parsedArg.RespondAsync("Left waiting list.", ephemeral: true);
+                            //await parsedArg.RespondAsync("Left waiting list.", ephemeral: true);
                         }
 
                         waitingListDataContext.SaveChanges();
                         guildData = waitingListDataContext.GetGuild(guild.Id);
 
                         await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList!, guild!, guildData);
+
+                        await parsedArg.AcknowledgeAsync();
                     }
                     else
                     {
