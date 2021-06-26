@@ -124,7 +124,7 @@ namespace WaitingListBot.Model
                 }
                 catch (Exception ex)
                 {
-                    warnings.AppendLine($"Could not invite {restGuildUser.Mention}. Exception: {ex.Message}");
+                    warnings.AppendLine($"Could not invite {restGuildUser?.Mention ?? player.Name}. Exception: {ex.Message}");
                 }
             }
 
