@@ -365,8 +365,11 @@ namespace WaitingListBot
                         user.IsSub = after.Roles.Any(x => x.Id == guildData.SubRoleId);
                     }
                 }
+
                 var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, after.Guild.Id);
                 await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, after.Guild, guildData);
+                waitingListDataContext.Update(guildData);
+                await waitingListDataContext.SaveChangesAsync();
             }
         }
 
