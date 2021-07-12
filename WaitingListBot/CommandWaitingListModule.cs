@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -207,6 +208,7 @@ namespace WaitingListBot
                 await myDMChannel.SendMessageAsync("Server: " + Context.Guild.Name);
 
                 await myDMChannel.SendMessageAsync(ex.ToString());
+                logger.LogError(ex, "Failed to invite players");
 
                 throw;
             }
