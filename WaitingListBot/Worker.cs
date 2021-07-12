@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.EventLog;
 
 using Newtonsoft.Json;
 
@@ -39,7 +40,7 @@ namespace WaitingListBot
         {
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages 
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers | GatewayIntents.GuildMessages
                 | GatewayIntents.GuildMessageReactions | GatewayIntents.DirectMessages | GatewayIntents.DirectMessageReactions,
                 AlwaysDownloadUsers = true,
                 AlwaysAcknowledgeInteractions = false
@@ -66,6 +67,15 @@ namespace WaitingListBot
             serviceCollection = new ServiceCollection();
             serviceCollection.AddSingleton(typeof(CommandService), commandService);
             serviceCollection.AddDbContext<WaitingListDataContext>();
+            serviceCollection.AddLogging(b =>
+            {
+                b.AddConsole();
+                b.AddEventLog(new EventLogSettings
+                {
+                    LogName = "Waiting List Bot",
+                    SourceName = "Waiting List Bot",
+                });
+            });
 
             using (var waitingListDataContext = new WaitingListDataContext())
             {
@@ -128,7 +138,7 @@ namespace WaitingListBot
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 logger.LogError(ex, "Timeout timer failed to run");
             }
