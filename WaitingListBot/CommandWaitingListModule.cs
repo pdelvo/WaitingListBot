@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 using System;
 using System.Collections.Generic;
@@ -19,15 +20,17 @@ namespace WaitingListBot
     public class CommandWaitingListModule : ModuleBase<SocketCommandContext>
     {
         readonly CommandService commandService;
+        private readonly ILogger<CommandWaitingList> logger;
         private WaitingListDataContext dataContext;
         GuildData guildData;
         IWaitingList waitingList;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public CommandWaitingListModule(CommandService commandService)
+        public CommandWaitingListModule(CommandService commandService, ILogger<CommandWaitingList> logger)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             this.commandService = commandService;
+            this.logger = logger;
         }
 
         protected override void BeforeExecute(CommandInfo command)
@@ -170,6 +173,8 @@ namespace WaitingListBot
             try
             {
                 var (result, invite) = await waitingList.GetInvite(arguments, numberOfPlayers, true);
+
+                logger.LogInformation(result?.Message);
 
                 if (!result.Success || invite == null)
                 {
