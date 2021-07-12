@@ -2,6 +2,8 @@
 using Discord.Commands;
 using Discord.WebSocket;
 
+using Microsoft.Extensions.Logging;
+
 using System;
 using System.Linq;
 using System.Reflection;
@@ -93,6 +95,10 @@ namespace WaitingListBot
                 if (result.Error != CommandError.UnknownCommand)
                 {
                     await messageParam.Channel.SendMessageAsync("Could not complete command: " + result.ErrorReason);
+
+                    var logger = (ILogger)_services.GetService(typeof(ILogger));
+
+                    logger.LogError(result.ErrorReason);
                 }
             }
         }
