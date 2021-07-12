@@ -70,11 +70,7 @@ namespace WaitingListBot
             serviceCollection.AddLogging(b =>
             {
                 b.AddConsole();
-                b.AddEventLog(new EventLogSettings
-                {
-                    LogName = "Waiting List Bot",
-                    SourceName = "Waiting List Bot",
-                });
+                b.AddEventSourceLogger();
             });
 
             using (var waitingListDataContext = new WaitingListDataContext())
