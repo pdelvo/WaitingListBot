@@ -357,21 +357,13 @@ namespace WaitingListBot
             }
 
             var userInGuild = guildData.GetOrCreateGuildUser(guildUser.Id, guildUser.Nickname ?? guildUser.Username);
+            // Add user the the waiting list
+            userInGuild.PlayCount = counter;
+            dataContext.Update(userInGuild);
+            dataContext.SaveChanges();
 
-            if (userInGuild.IsInWaitingList)
-            {
-                await Context.Message.ReplyAsync("You are already on the waiting list!");
-            }
-            else
-            {
-                // Add user the the waiting list
-                userInGuild.PlayCount = counter;
-                dataContext.Update(userInGuild);
-                dataContext.SaveChanges();
-
-                await Context.Message.ReplyAsync($"Updated counter for {userInGuild.Name}");
-                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
-            }
+            await Context.Message.ReplyAsync($"Updated counter for {userInGuild.Name}");
+            await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
         }
 
         [Command("leave")]
