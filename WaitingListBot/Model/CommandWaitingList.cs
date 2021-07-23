@@ -56,9 +56,23 @@ namespace WaitingListBot.Model
             }
         }
 
-        public async Task<(CommandResult commandResult, Invite? invite)> GetInvite(string[] arguments, int numberOfPlayers, bool removeFromList = true)
+        public async Task<(CommandResult commandResult, Invite? invite)> GetInvite(string[] arguments, int numberOfPlayers, ulong? inviteRole = null, bool? isInviteRolePositive = null, bool removeFromList = true)
         {
-            var list = guildData.GetSortedList();
+            IAsyncEnumerable<UserInGuild> asyncList = guildData.GetSortedList().ToAsyncEnumerable();
+
+            if (inviteRole is ulong roleId)
+            {
+                asyncList = asyncList.WhereAwait(async x =>
+                {
+                    var restGuildUser = await restClient.GetGuildUserAsync(guildId, x.UserId);
+
+                    var hasRole = restGuildUser.RoleIds.Contains(roleId);
+
+                    return hasRole == isInviteRolePositive;
+                });
+            }
+
+            var list = await asyncList.ToListAsync();
 
             if (list.Count < numberOfPlayers)
             {
@@ -134,11 +148,24 @@ namespace WaitingListBot.Model
 
             return (CommandResult.FromSuccess("Players have been invited." + (warnings.Length > 0 ? "\r\n" + warnings.ToString() : "")), invite);
         }
+
         public async Task<CommandResult> InviteNextPlayerAsync(Invite invite)
         {
-            var list = guildData.GetSortedList();
+            IAsyncEnumerable<UserInGuild> list = guildData.GetSortedList().ToAsyncEnumerable();
+            
+            if (invite.InviteRole is ulong roleId)
+            {
+                list = list.WhereAwait(async x =>
+                {
+                    var restGuildUser = await restClient.GetGuildUserAsync(guildId, x.UserId);
 
-            if (list.Count == 0)
+                    var hasRole = restGuildUser.RoleIds.Contains(roleId);
+
+                    return hasRole == invite.IsInviteRolePositive;
+                });
+            }
+
+            if (await list.AnyAsync())
             {
                 return CommandResult.FromError($"Could not invite additional player. List is empty.");
             }
@@ -157,7 +184,7 @@ namespace WaitingListBot.Model
             StringBuilder warnings = new StringBuilder();
 
             // Send invites
-            var player = list[0];
+            var player = await list.FirstAsync();
 
             player.IsInWaitingList = false;
             player.PlayCount++;

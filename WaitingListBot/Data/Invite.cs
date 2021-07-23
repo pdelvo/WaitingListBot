@@ -39,5 +39,8 @@ namespace WaitingListBot.Data
 
         public ulong InviteMessageId { get; set; }
         public ulong InviteMessageChannelId { get; set; }
+
+        public ulong? InviteRole { get; set; }
+        public bool? IsInviteRolePositive { get; set; }
     }
 }

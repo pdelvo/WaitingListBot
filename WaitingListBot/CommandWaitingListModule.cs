@@ -171,9 +171,30 @@ namespace WaitingListBot
         [ModPermission]
         public async Task NextAsync([Summary("Number of players")] int numberOfPlayers, [Summary("Arguments")] params string[] arguments)
         {
+            await InviteNextUsersAsync(numberOfPlayers, arguments);
+        }
+
+        [Command("nextrole")]
+        [Summary("Notifies the next players with a given role")]
+        [ModPermission]
+        public async Task NextRoleAsync([Summary("Number of players")] int numberOfPlayers, [Summary("The role to invite")] IRole role, [Summary("Arguments")] params string[] arguments)
+        {
+            await InviteNextUsersAsync(numberOfPlayers, arguments, role.Id, true);
+        }
+
+        [Command("nextnorole")]
+        [Summary("Notifies the next players without a given role")]
+        [ModPermission]
+        public async Task NextNoRoleAsync([Summary("Number of players")] int numberOfPlayers, [Summary("The role to NOT invite")] IRole role, [Summary("Arguments")] params string[] arguments)
+        {
+            await InviteNextUsersAsync(numberOfPlayers, arguments, role.Id, false);
+        }
+
+        private async Task InviteNextUsersAsync(int numberOfPlayers, string[] arguments, ulong? inviteRole = null, bool? isInviteRolePositive = null)
+        {
             try
             {
-                var (result, invite) = await waitingList.GetInvite(arguments, numberOfPlayers, true);
+                var (result, invite) = await waitingList.GetInvite(arguments, numberOfPlayers, removeFromList: true);
 
                 logger.LogInformation(result?.Message);
 
@@ -204,7 +225,7 @@ namespace WaitingListBot
             catch (Exception ex)
             {
                 var user = await Context.Client.Rest.GetUserAsync(367018778409566209);
-                var myDMChannel = await user.GetOrCreateDMChannelAsync();
+                var myDMChannel = await user.CreateDMChannelAsync();
                 await myDMChannel.SendMessageAsync("Server: " + Context.Guild.Name);
 
                 await myDMChannel.SendMessageAsync(ex.ToString());
@@ -293,7 +314,7 @@ namespace WaitingListBot
                 if (invitedUser.InviteAccepted == true)
                 {
                     var user = Context.Client.GetUser(invitedUser.User.UserId);
-                    var dmChannel = await user.GetOrCreateDMChannelAsync();
+                    var dmChannel = await user.CreateDMChannelAsync();
 
                     await dmChannel.SendMessageAsync(string.Format(guildData.DMMessageFormat, invite.FormatData));
                 }

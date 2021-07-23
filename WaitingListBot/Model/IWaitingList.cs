@@ -12,7 +12,7 @@ namespace WaitingListBot.Model
         Task<CommandResult> AddUserAsync(IGuildUser guildUser);
         Task<CommandResult> RemoveUserAsync(ulong guildUserId);
 
-        Task<(CommandResult commandResult, Invite invite)> GetInvite(string[] arguments, int numberOfPlayers, bool removeFromList = true);
+        Task<(CommandResult commandResult, Invite invite)> GetInvite(string[] arguments, int numberOfPlayers, ulong? inviteRole = null, bool? isInviteRolePositive = null, bool removeFromList = true);
         Task<CommandResult> ResendAsync(Invite invite, string[] arguments);
 
         Task<UserInGuild[]> GetPlayerListAsync();

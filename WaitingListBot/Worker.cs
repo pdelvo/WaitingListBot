@@ -111,7 +111,7 @@ namespace WaitingListBot
                                     {
                                         await DeclineInviteAsync(client.Rest, guild, waitingList, invitedUser);
 
-                                        var dmChannel = await (await client.Rest.GetUserAsync(invitedUser.User.UserId)).GetOrCreateDMChannelAsync();
+                                        var dmChannel = await (await client.Rest.GetUserAsync(invitedUser.User.UserId)).CreateDMChannelAsync();
 
                                         var message = await dmChannel.GetMessageAsync(invitedUser.DmQuestionMessageId);
 
@@ -321,6 +321,29 @@ namespace WaitingListBot
                 .Build().Run();
         }
 
+        private async Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> before, SocketGuildUser after)
+        {
+            // Try to update
+            using (var waitingListDataContext = new WaitingListDataContext())
+            {
+                var guildData = waitingListDataContext.GetGuild(after.Guild.Id);
+
+                foreach (var user in guildData.UsersInGuild)
+                {
+                    if (user.UserId == after.Id)
+                    {
+                        user.Name = after.Nickname ?? after.Username;
+                        user.IsSub = after.Roles.Any(x => x.Id == guildData.SubRoleId);
+                    }
+                }
+
+                var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, after.Guild.Id);
+                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, after.Guild, guildData);
+                waitingListDataContext.Update(guildData);
+                await waitingListDataContext.SaveChangesAsync();
+            }
+        }
+
         private async Task Client_GuildAvailable(SocketGuild guild)
         {
             // Try to migrate old data:
@@ -370,28 +393,7 @@ namespace WaitingListBot
             await client.StopAsync();
         }
 
-        private async Task GuildMemberUpdated(SocketGuildUser before, SocketGuildUser after)
-        {
-            // Try to update
-            using (var waitingListDataContext = new WaitingListDataContext())
-            {
-                var guildData = waitingListDataContext.GetGuild(after.Guild.Id);
-
-                foreach (var user in guildData.UsersInGuild)
-                {
-                    if (user.UserId == after.Id)
-                    {
-                        user.Name = after.Nickname ?? after.Username;
-                        user.IsSub = after.Roles.Any(x => x.Id == guildData.SubRoleId);
-                    }
-                }
-
-                var waitingList = new CommandWaitingList(waitingListDataContext, client.Rest, after.Guild.Id);
-                await ButtonWaitingListModule.UpdatePublicMessageAsync(waitingList, after.Guild, guildData);
-                waitingListDataContext.Update(guildData);
-                await waitingListDataContext.SaveChangesAsync();
-            }
-        }
+       
 
         private Task Log(LogMessage logMessage)
         {
