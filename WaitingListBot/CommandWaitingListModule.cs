@@ -194,7 +194,7 @@ namespace WaitingListBot
         {
             try
             {
-                var (result, invite) = await waitingList.GetInvite(arguments, numberOfPlayers, removeFromList: true);
+                var (result, invite) = await waitingList.GetInvite(arguments, numberOfPlayers, inviteRole, isInviteRolePositive, removeFromList: true);
 
                 logger.LogInformation(result?.Message);
 
