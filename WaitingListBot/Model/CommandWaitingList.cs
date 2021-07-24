@@ -96,7 +96,9 @@ namespace WaitingListBot.Model
                 Guild = guildData,
                 InvitedUsers = new List<InvitedUser>(),
                 InviteTime = DateTime.Now,
-                NumberOfInvitedUsers = numberOfPlayers
+                NumberOfInvitedUsers = numberOfPlayers,
+                InviteRole = inviteRole,
+                IsInviteRolePositive = isInviteRolePositive
             };
 
             dataContext.Invites.Add(invite);
@@ -165,7 +167,7 @@ namespace WaitingListBot.Model
                 });
             }
 
-            if (await list.AnyAsync())
+            if (!await list.AnyAsync())
             {
                 return CommandResult.FromError($"Could not invite additional player. List is empty.");
             }
