@@ -125,7 +125,7 @@ namespace WaitingListBot.Model
                     componentBuilder.WithButton("No", customId: $"joinNo;{invite.Id}");
 
 
-                    var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", component: componentBuilder.Build());
+                    var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", components: componentBuilder.Build());
 
 
                     InvitedUser invitedUser = new InvitedUser
@@ -202,7 +202,7 @@ namespace WaitingListBot.Model
                 componentBuilder.WithButton("No", customId: $"joinNo;{invite.Id}");
 
 
-                var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", component: componentBuilder.Build());
+                var userMessage = await restGuildUser.SendMessageAsync($"Are you ready to join? You have 1 minute to respond.", components: componentBuilder.Build());
 
 
                 invite.InvitedUsers.Add(new InvitedUser

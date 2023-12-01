@@ -2,6 +2,7 @@
 using Discord.Commands;
 using Discord.WebSocket;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -62,7 +63,8 @@ namespace WaitingListBot
             // Create a number to track where the prefix ends and the command begins
             int argPos = 0;
 
-            using (var dataContext = new WaitingListDataContext())
+            using (var asyncScope = _services.CreateAsyncScope())
+            using (var dataContext = asyncScope.ServiceProvider.GetService<WaitingListDataContext>())
             {
                 var guildData = dataContext!.GetOrCreateGuildData(guild);
 
@@ -96,7 +98,7 @@ namespace WaitingListBot
                 {
                     await messageParam.Channel.SendMessageAsync("Could not complete command: " + result.ErrorReason);
 
-                    var logger = (ILogger)_services.GetService(typeof(ILogger));
+                    var logger = _services.GetService<ILogger>();
 
                     logger.LogError(result.ErrorReason);
                 }

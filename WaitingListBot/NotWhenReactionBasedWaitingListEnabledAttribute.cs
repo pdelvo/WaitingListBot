@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Commands;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,23 +14,24 @@ namespace WaitingListBot
 {
     public class NotWhenReactionBasedWaitingListEnabledAttribute : PreconditionAttribute
     {
-        public override async Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
+        public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
             var guild = context.Guild;
 
             if (guild != null)
             {
-                var dataContext = (WaitingListDataContext)services.GetService(typeof(WaitingListDataContext))!;
-
-                var guildData = dataContext.GetGuild(guild.Id);
-
-                if (guildData.IsEnabled == true)
+                using (var dataContext = services.GetRequiredService<WaitingListDataContext>())
                 {
-                    return PreconditionResult.FromError("Cannot run this command while a reaction waiting list is active");
+                    var guildData = dataContext.GetOrCreateGuildData(guild);
+
+                    if (guildData.IsEnabled == true)
+                    {
+                        return Task.FromResult(PreconditionResult.FromError("Cannot run this command while a reaction waiting list is active"));
+                    }
                 }
             }
 
-            return PreconditionResult.FromSuccess();
+            return Task.FromResult(PreconditionResult.FromSuccess());
         }
     }
 }

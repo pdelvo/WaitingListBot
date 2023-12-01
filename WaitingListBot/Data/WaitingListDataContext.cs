@@ -2,9 +2,11 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,10 +14,18 @@ namespace WaitingListBot.Data
 {
     public class WaitingListDataContext : DbContext
     {
+        ILogger<WaitingListDataContext> logger;
+        WaitingListBotConfiguration configuration;
         public DbSet<Invite> Invites { get; set; }
         public DbSet<InvitedUser> InvitedUsers { get; set; }
         public DbSet<UserInGuild> UserInGuild { get; set; }
         public DbSet<GuildData> GuildData { get; set; }
+
+        public WaitingListDataContext(WaitingListBotConfiguration configuration, ILogger<WaitingListDataContext> logger)
+        {
+            this.configuration = configuration;
+            this.logger = logger;
+        }
 
         public GuildData UpdateGuild(ulong guildId, string name, string description, string iconUrl)
         {
@@ -59,12 +69,17 @@ namespace WaitingListBot.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            ConfigurationBuilder builder = new ConfigurationBuilder();
-            builder.AddJsonFile("appsettings.json");
-            var configuration = builder.Build();
+            string connectionString = configuration.ConnectionString;
+            try
+            {
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+            }
+            catch (Exception ex)
+            {
+                logger.LogCritical(ex.InnerException, "Failed to connect to database: " + connectionString);
 
-            string connectionString = configuration.GetConnectionString("DefaultConnection");
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+                throw;
+            }
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

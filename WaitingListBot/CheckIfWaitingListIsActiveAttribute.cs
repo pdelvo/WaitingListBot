@@ -1,11 +1,15 @@
 ﻿using Discord.Commands;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 using WaitingListBot.Data;
+
+using static System.Formats.Asn1.AsnWriter;
 
 namespace WaitingListBot
 {
@@ -20,14 +24,16 @@ namespace WaitingListBot
 
         public override Task<PreconditionResult> CheckPermissionsAsync(ICommandContext context, CommandInfo command, IServiceProvider services)
         {
+            using var scope = services.CreateAsyncScope();
+            var scopedServices = scope.ServiceProvider;
             var guild = context.Guild;
 
             if (guild != null)
             {
-                using (var dataContext = new WaitingListDataContext())
+                using (var waitingListDataContext = scopedServices.GetRequiredService<WaitingListDataContext>())
                 {
 
-                    var guildData = dataContext.GetGuild(guild.Id);
+                    var guildData = waitingListDataContext.GetGuild(guild.Id);
 
                     if (allowRunningIfListIsActive == guildData?.IsEnabled)
                     {

@@ -344,3 +344,5 @@ healthchecksdb
 /WaitingListBot.Web/appsettings.json
 *.db
 /WaitingListBot/appsettings.json
+
+settings.env

@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,55 +13,64 @@ namespace WaitingListBot.Api
     [ApiController]
     public class GuildController : ControllerBase
     {
-        readonly WaitingListDataContext dataContext;
+        readonly IServiceProvider serviceProvider;
 
-        public GuildController()
+        public GuildController(IServiceProvider serviceProvider)
         {
-            dataContext = new WaitingListDataContext();
+            this.serviceProvider = serviceProvider;
         }
 
         [HttpGet]
         [Route("List")]
         public IEnumerable<ulong> List()
         {
-            return dataContext.GuildData.AsQueryable().Select(x => x.GuildId);
+            using (var dataContext = serviceProvider.GetRequiredService<WaitingListDataContext>())
+            {
+                return dataContext.GuildData.AsQueryable().Select(x => x.GuildId);
+            }
         }
 
         [HttpGet]
         [Route("{guildId}/List")]
         public IEnumerable<UserInGuild>? ListPlayers(ulong guildId)
         {
-            var guildData = dataContext.GetGuild(guildId);
-
-            List<UserInGuild>? sortedList = guildData?.GetSortedList();
-
-            // We dont want to leak this
-            foreach (var item in sortedList!)
+            using (var dataContext = serviceProvider.GetRequiredService<WaitingListDataContext>())
             {
-                item.UserId = 0;
-                item.Guild = null!;
-            }
+                var guildData = dataContext.GetGuild(guildId);
 
-            return sortedList;
+                List<UserInGuild>? sortedList = guildData?.GetSortedList();
+
+                // We dont want to leak this
+                foreach (var item in sortedList!)
+                {
+                    item.UserId = 0;
+                    item.Guild = null!;
+                }
+
+                return sortedList;
+            }
         }
 
         [HttpGet]
         [Route("{guildId}/Info")]
         public GuildInformation? GetGuildInformation(ulong guildId)
         {
-            var guildData = dataContext.GetGuild(guildId);
-
-            if (guildData == null)
+            using (var dataContext = serviceProvider.GetRequiredService<WaitingListDataContext>())
             {
-                return null;
-            }
+                var guildData = dataContext.GetGuild(guildId);
 
-            return new GuildInformation 
-            { 
-                Name = guildData.Name,
-                Description = guildData.Description,
-                IconUrl = guildData.IconUrl
-            };
+                if (guildData == null)
+                {
+                    return null;
+                }
+
+                return new GuildInformation
+                {
+                    Name = guildData.Name,
+                    Description = guildData.Description,
+                    IconUrl = guildData.IconUrl
+                };
+            }
         }
     }
 }

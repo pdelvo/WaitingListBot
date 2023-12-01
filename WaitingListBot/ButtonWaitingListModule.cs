@@ -3,6 +3,8 @@ using Discord.Commands;
 using Discord.Commands.Builders;
 using Discord.WebSocket;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,31 +18,33 @@ namespace WaitingListBot
     [RequireContext(ContextType.Guild)]
     public class ButtonWaitingListModule : ModuleBase<SocketCommandContext>
     {
-        WaitingListDataContext dataContext;
-        GuildData guildData;
+        IServiceProvider scopedServices;
+        IServiceProvider services;
+        private Worker worker;
+        AsyncServiceScope scope;
         readonly CommandService commandService;
-        IWaitingList waitingList;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ButtonWaitingListModule(CommandService commandService)
+        public ButtonWaitingListModule(Worker worker, CommandService commandService, IServiceProvider services)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             this.commandService = commandService;
+            this.services = services;
+            this.worker = worker;
         }
 
         protected override void BeforeExecute(CommandInfo command)
         {
-            dataContext = new WaitingListDataContext();
-            waitingList = new CommandWaitingList(dataContext, Context.Client.Rest, Context.Guild.Id);
-            guildData = dataContext.GetOrCreateGuildData(Context.Guild)!;
+            scope = services.CreateAsyncScope();
+            scopedServices = scope.ServiceProvider;
             base.BeforeExecute(command);
         }
 
         protected override void AfterExecute(CommandInfo command)
         {
-            dataContext.SaveChanges();
-            dataContext.Dispose();
             base.AfterExecute(command);
+
+            scope.Dispose();
         }
 
         [Command("start")]
@@ -48,38 +52,43 @@ namespace WaitingListBot
         [ModPermission]
         public async Task Start()
         {
-            var message = await GetMessageAsync(Context.Guild, guildData);
-
-            if (message != null)
+            using (var dataContext = scopedServices.GetRequiredService<WaitingListDataContext>())
             {
-                await Context.Message.ReplyAsync("Waiting list is already open");
-                return;
+                var waitingList = new CommandWaitingList(dataContext, Context.Client.Rest, Context.Guild.Id);
+                var guildData = dataContext.GetOrCreateGuildData(Context.Guild);
+                var message = await GetMessageAsync(Context.Guild, guildData);
+
+                if (message != null)
+                {
+                    await Context.Message.ReplyAsync("Waiting list is already open");
+                    return;
+                }
+
+                waitingList.ClearUsers();
+
+                var waitingListChannel = Context.Guild.GetTextChannel(guildData.WaitingListChannelId);
+
+                message = await waitingListChannel.SendMessageAsync("Join the waiting list now!");
+
+                guildData.PublicMessageId = message.Id;
+                guildData.IsEnabled = true;
+                guildData.IsPaused = false;
+                dataContext.Update(guildData);
+                dataContext.SaveChanges();
+                // await message.AddReactionAsync(storage.ReactionEmote);
+
+                await UpdatePublicMessageAsync(Context.Guild, guildData);
+                var modMessage = await Context.Message.ReplyAsync("Waiting list has been started");
+
+                ComponentBuilder componentBuilder = new ComponentBuilder();
+                componentBuilder.WithButton("Clear counters", customId: "clearcounters");
+
+                await modMessage.ModifyAsync(p =>
+                {
+                    p.Components = componentBuilder.Build();
+                });
+
             }
-
-            waitingList.ClearUsers();
-
-            var waitingListChannel = Context.Guild.GetTextChannel(guildData.WaitingListChannelId);
-
-            message = await waitingListChannel.SendMessageAsync("Join the waiting list now!");
-
-            guildData.PublicMessageId = message.Id;
-            guildData.IsEnabled = true;
-            guildData.IsPaused = false;
-            dataContext.Update(guildData);
-            dataContext.SaveChanges();
-            // await message.AddReactionAsync(storage.ReactionEmote);
-
-            await UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
-            var modMessage = await Context.Message.ReplyAsync("Waiting list has been started");
-
-            ComponentBuilder componentBuilder = new ComponentBuilder();
-            componentBuilder.WithButton("Clear counters", customId: "clearcounters");
-
-            await modMessage.ModifyAsync(p =>
-            {
-                p.Components = componentBuilder.Build();
-            });
-
         }
 
         [Command("stop")]
@@ -87,22 +96,27 @@ namespace WaitingListBot
         [ModPermission]
         public async Task Stop()
         {
-            var message = await GetMessageAsync(Context.Guild, guildData);
-
-            if (message == null)
+            using (var dataContext = scopedServices.GetRequiredService<WaitingListDataContext>())
             {
-                await Context.Message.ReplyAsync("Waiting list is not running");
-                return;
+                var waitingList = new CommandWaitingList(dataContext, Context.Client.Rest, Context.Guild.Id);
+                var guildData = dataContext.GetOrCreateGuildData(Context.Guild);
+                var message = await GetMessageAsync(Context.Guild, guildData);
+
+                if (message == null)
+                {
+                    await Context.Message.ReplyAsync("Waiting list is not running");
+                    return;
+                }
+
+                guildData.IsEnabled = false;
+                guildData.IsPaused = false;
+                dataContext.Update(guildData);
+                dataContext.SaveChanges();
+
+                await message.DeleteAsync();
+
+                await Context.Message.ReplyAsync("Waiting list has been stopped");
             }
-
-            guildData.IsEnabled = false;
-            guildData.IsPaused = false;
-            dataContext.Update(guildData);
-            dataContext.SaveChanges();
-
-            await message.DeleteAsync();
-
-            await Context.Message.ReplyAsync("Waiting list has been stopped");
         }
 
         [Command("pause")]
@@ -110,39 +124,31 @@ namespace WaitingListBot
         [ModPermission]
         public async Task Pause()
         {
-            if (!guildData.IsEnabled)
+            using (var dataContext = scopedServices.GetRequiredService<WaitingListDataContext>())
             {
-                await Context.Message.ReplyAsync("Waiting list has not open");
-                return;
+                var waitingList = new CommandWaitingList(dataContext, Context.Client.Rest, Context.Guild.Id);
+                var guildData = dataContext.GetOrCreateGuildData(Context.Guild);
+                if (!guildData.IsEnabled)
+                {
+                    await Context.Message.ReplyAsync("Waiting list has not open");
+                    return;
+                }
+                guildData.IsPaused = true;
+                dataContext.Update(guildData);
+                dataContext.SaveChanges();
+
+                await UpdatePublicMessageAsync(Context.Guild, guildData);
+                ComponentBuilder componentBuilder = new ComponentBuilder();
+
+                componentBuilder.WithButton("Unpause", customId: "unpause");
+
+                await Context.Message.DeleteAsync();
+
+                await Context.Channel.SendMessageAsync("Waiting list has been paused", components: componentBuilder.Build());
             }
-            guildData.IsPaused = true;
-            dataContext.Update(guildData);
-            dataContext.SaveChanges();
-
-            await UpdatePublicMessageAsync(waitingList, Context.Guild, guildData);
-            ComponentBuilder componentBuilder = new ComponentBuilder();
-
-            componentBuilder.WithButton("Unpause", customId: "unpause");
-
-            await Context.Message.DeleteAsync();
-
-            await Context.Channel.SendMessageAsync("Waiting list has been paused", component: componentBuilder.Build());
         }
 
-        //[Command("unpause")]
-        //[Summary("Pauses the joining of the list.")]
-        //[ModPermission]
-        //public async Task Unpause()
-        //{
-        //    storage.IsPaused = false;
-        //    storage.Save();
-
-        //    await UpdateReactionMessageAsync(waitingList, Context.Guild, storage);
-
-        //    await Context.Message.ReplyAsync("Waiting list has been unpaused");
-        //}
-
-        public static async Task UpdatePublicMessageAsync(IWaitingList waitingList, IGuild guild, GuildData guildData)
+        public static async Task UpdatePublicMessageAsync(IGuild guild, GuildData guildData)
         {
             var message = await GetMessageAsync(guild, guildData);
             if (message is not IUserMessage) return;
@@ -153,7 +159,7 @@ namespace WaitingListBot
                 Title = $"Waiting list"
             };
 
-            var sortedList = await waitingList.GetPlayerListAsync();
+            var sortedList = guildData.GetSortedList();
             var description = "";
             int counter = 0;
 
@@ -169,7 +175,7 @@ namespace WaitingListBot
             string url = "https://wl.pdelvo.com/WaitingList/" + guild.Id;
 
             embedBuilder.Description = description;
-            embedBuilder.AddField("\u200B", "[View this list in real time](" + url + ")");
+            // embedBuilder.AddField("\u200B", "[View this list in real time](" + url + ")");
 
             ComponentBuilder componentBuilder = new ComponentBuilder();
 
