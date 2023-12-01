@@ -32,58 +32,58 @@ jobs:
           name: waitinglistbotweb
           path: WaitingListBot.Web/bin/Release/net5.0/linux-x64/
     
-  deploy:
-    if: ${{ github.event_name == 'push' }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v2
-      with:
-          name: waitinglistbot
-    - name: Copy artifacts
-      uses: appleboy/scp-action@master
-      with:
-        source: "."
-        target: "/var/waitinglistbot/"
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key : ${{ secrets.PRIVATE_KEY }}
-    - name: Mark executable
-      uses: garygrossgarten/github-action-ssh@release
-      with:
-            command: chmod +x /var/waitinglistbot/WaitingListBot
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USERNAME }}
-            privateKey: ${{ secrets.PRIVATE_KEY }}
-    - name: Restart service
-      uses: garygrossgarten/github-action-ssh@release
-      with:
-            command: sudo systemctl restart WaitingListBot
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USERNAME }}
-            privateKey: ${{ secrets.PRIVATE_KEY }}
-  deployweb:
-    if: ${{ github.event_name == 'push' }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v2
-      with:
-          name: waitinglistbotweb
-    - name: Copy artifacts
-      uses: appleboy/scp-action@master
-      with:
-        source: "."
-        target: "/var/waitinglistbotweb/"
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key : ${{ secrets.PRIVATE_KEY }}
-    - name: Start service
-      uses: garygrossgarten/github-action-ssh@release
-      with:
-            command: sudo systemctl restart waitinglistbotweb
-            host: ${{ secrets.HOST }}
-            username: ${{ secrets.USERNAME }}
-            privateKey: ${{ secrets.PRIVATE_KEY }}
+  # deploy:
+  #   if: ${{ github.event_name == 'push' }}
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Download artifact
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #         name: waitinglistbot
+  #   - name: Copy artifacts
+  #     uses: appleboy/scp-action@master
+  #     with:
+  #       source: "."
+  #       target: "/var/waitinglistbot/"
+  #       host: ${{ secrets.HOST }}
+  #       username: ${{ secrets.USERNAME }}
+  #       key : ${{ secrets.PRIVATE_KEY }}
+  #   - name: Mark executable
+  #     uses: garygrossgarten/github-action-ssh@release
+  #     with:
+  #           command: chmod +x /var/waitinglistbot/WaitingListBot
+  #           host: ${{ secrets.HOST }}
+  #           username: ${{ secrets.USERNAME }}
+  #           privateKey: ${{ secrets.PRIVATE_KEY }}
+  #   - name: Restart service
+  #     uses: garygrossgarten/github-action-ssh@release
+  #     with:
+  #           command: sudo systemctl restart WaitingListBot
+  #           host: ${{ secrets.HOST }}
+  #           username: ${{ secrets.USERNAME }}
+  #           privateKey: ${{ secrets.PRIVATE_KEY }}
+  # deployweb:
+  #   if: ${{ github.event_name == 'push' }}
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Download artifact
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #         name: waitinglistbotweb
+  #   - name: Copy artifacts
+  #     uses: appleboy/scp-action@master
+  #     with:
+  #       source: "."
+  #       target: "/var/waitinglistbotweb/"
+  #       host: ${{ secrets.HOST }}
+  #       username: ${{ secrets.USERNAME }}
+  #       key : ${{ secrets.PRIVATE_KEY }}
+  #   - name: Start service
+  #     uses: garygrossgarten/github-action-ssh@release
+  #     with:
+  #           command: sudo systemctl restart waitinglistbotweb
+  #           host: ${{ secrets.HOST }}
+  #           username: ${{ secrets.USERNAME }}
+  #           privateKey: ${{ secrets.PRIVATE_KEY }}
